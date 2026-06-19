@@ -352,6 +352,34 @@ function GirisEkrani({ onGiris }) {
   const [kopya, setKopya] = useState(false);
   const [cihazdaYok, setCihazdaYok] = useState(false);
 
+  async function demoGiris() {
+    const k = "111111";
+    const d = {
+      ad: "Demo Kullanıcı", eposta: "demo@aractakip.com", telefon: null, ajanApiKey: null,
+      araclar: [{ id: "a1", marka: "Toyota", model: "Corolla", yil: "2021", plaka: "34KA4521", renk: "Gümüş", foto: null, tasitTipi: "otomobil", anaYakitTipi: "benzin", yakitTipleri: ["benzin"], notlar: "", sigortaYok: false, sigortaBitis: "2027-03-15", sigortaSirketi: "Axa Sigorta", sigortaPolicesi: null, kaskoYok: false, kaskoBitis: "2026-09-20", kaskoSirketi: "Mapfre", kaskoPolicesi: null, mtvDonemi: "2026-01", mtvOdendi: true, bakimPeriyoduKm: "15000", sonBakimTarihi: "2026-03-10", sonBakimKm: "78500", alimTarihi: "2022-06-15", alimTutari: "480000", alimUsdKuru: "17.5", alimAltinFiyati: "1050", satisTarihi: "", satisTutari: "", satisUsdKuru: "", satisAltinFiyati: "" }],
+      doldurmalar: { a1: [
+        { id: "d1", tarih: "2026-04-03", km: 80200, yakitTipi: "benzin", litre: 45.2, tutar: 1808, istasyon: "Opet", sehir: "İstanbul", odemeYontemi: "Kredi Kartı", depoDoluluk: null, surusTipi: null, not: null, kmGorseli: null, fisGorseli: null },
+        { id: "d2", tarih: "2026-04-18", km: 80980, yakitTipi: "benzin", litre: 38.5, tutar: 1540, istasyon: "BP", sehir: "İstanbul", odemeYontemi: "Nakit", depoDoluluk: null, surusTipi: null, not: null, kmGorseli: null, fisGorseli: null },
+        { id: "d3", tarih: "2026-05-02", km: 81750, yakitTipi: "benzin", litre: 41.0, tutar: 1640, istasyon: "Shell", sehir: "Ankara", odemeYontemi: "Kredi Kartı", depoDoluluk: null, surusTipi: null, not: "Uzun yol", kmGorseli: null, fisGorseli: null },
+        { id: "d4", tarih: "2026-05-16", km: 82520, yakitTipi: "benzin", litre: 39.8, tutar: 1592, istasyon: "Petrol Ofisi", sehir: "İstanbul", odemeYontemi: "Kredi Kartı", depoDoluluk: null, surusTipi: null, not: null, kmGorseli: null, fisGorseli: null },
+        { id: "d5", tarih: "2026-05-29", km: 83310, yakitTipi: "benzin", litre: 43.2, tutar: 1728, istasyon: "Opet", sehir: "İstanbul", odemeYontemi: "Nakit", depoDoluluk: null, surusTipi: null, not: null, kmGorseli: null, fisGorseli: null },
+        { id: "d6", tarih: "2026-06-08", km: 84150, yakitTipi: "benzin", litre: 40.5, tutar: 1822, istasyon: "BP", sehir: "İstanbul", odemeYontemi: "Kredi Kartı", depoDoluluk: null, surusTipi: null, not: null, kmGorseli: null, fisGorseli: null },
+        { id: "d7", tarih: "2026-06-17", km: 84920, yakitTipi: "benzin", litre: 44.0, tutar: 1980, istasyon: "Shell", sehir: "İstanbul", odemeYontemi: "Kredi Kartı", depoDoluluk: null, surusTipi: null, not: "Son dolum", kmGorseli: null, fisGorseli: null },
+      ]},
+      masraflar: { a1: [
+        { id: "m1", tip: "masraf", kategori: "Sigorta", aciklama: "Trafik sigortası yenileme", tarih: "2026-04-01", km: 80100, tutar: 3200, faturaGorseli: null },
+        { id: "m2", tip: "servis", kategori: null, aciklama: "Periyodik bakım — yağ + filtre", tarih: "2026-04-10", km: 80500, tutar: 4850, faturaGorseli: null },
+        { id: "m3", tip: "masraf", kategori: "Lastik", aciklama: "4 lastik değişimi", tarih: "2026-05-05", km: 81900, tutar: 12400, faturaGorseli: null },
+        { id: "m4", tip: "masraf", kategori: "Park", aciklama: "Aylık otopark", tarih: "2026-05-01", km: null, tutar: 1200, faturaGorseli: null },
+        { id: "m5", tip: "servis", kategori: null, aciklama: "Ön cam değişimi (çatlak)", tarih: "2026-05-20", km: 82700, tutar: 5500, faturaGorseli: null },
+        { id: "m6", tip: "masraf", kategori: "Park", aciklama: "Aylık otopark", tarih: "2026-06-01", km: null, tutar: 1200, faturaGorseli: null },
+        { id: "m7", tip: "masraf", kategori: "Yıkama", aciklama: "Detaylı iç-dış temizlik", tarih: "2026-06-12", km: 84200, tutar: 850, faturaGorseli: null },
+      ]},
+    };
+    await stSet(`data:${k}`, d);
+    onGiris(k, d);
+  }
+
   async function girisYap() {
     const k = girisKod.trim();
     if (k.length !== 6 || !/^\d+$/.test(k)) { setHata("6 haneli rakamsal kod gir."); return; }
@@ -399,7 +427,15 @@ function GirisEkrani({ onGiris }) {
                 <input value={girisKod} onChange={(e) => { setGirisKod(e.target.value.replace(/\D/g, "").slice(0, 6)); setCihazdaYok(false); }} placeholder="123456" maxLength={6} inputMode="numeric"
                   style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", color: T.text, fontSize: 24, fontWeight: 700, letterSpacing: "0.2em", textAlign: "center" }} />
               </Field>
-              <button onClick={girisYap} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700 }}>Giriş Yap</button>
+              <button onClick={girisYap} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Giriş Yap</button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <div style={{ flex: 1, height: 1, background: T.border }} />
+                <span style={{ fontSize: 11, color: T.textMuted }}>ya da</span>
+                <div style={{ flex: 1, height: 1, background: T.border }} />
+              </div>
+              <button onClick={demoGiris} style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, color: T.textSub, borderRadius: 12, padding: 13, fontSize: 14, fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <Car size={16} color={T.textSub} /> Demo ile dene
+              </button>
             </>
           )}
           {sekme === "giris" && cihazdaYok && (
