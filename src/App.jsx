@@ -805,63 +805,83 @@ function FinansalEkran({ arac, dolumlar, masraflar }) {
     const servisT = masraflar.filter((m) => m.tip === "servis").reduce((s, m) => s + m.tutar, 0);
     const masrafT = masraflar.filter((m) => m.tip === "masraf").reduce((s, m) => s + m.tutar, 0);
     const toplam = yakitT + servisT + masrafT;
-    // aylık
     const aylik = {};
     dolumlar.forEach((d) => { const a = d.tarih.slice(0, 7); aylik[a] = aylik[a] || { yakit: 0, servis: 0, masraf: 0 }; aylik[a].yakit += d.tutar; });
     masraflar.forEach((m) => { const a = m.tarih.slice(0, 7); aylik[a] = aylik[a] || { yakit: 0, servis: 0, masraf: 0 }; aylik[a][m.tip === "servis" ? "servis" : "masraf"] += m.tutar; });
     const aylikArr = Object.entries(aylik).sort().slice(-6).map(([a, v]) => ({ ay: new Date(a + "-01").toLocaleDateString("tr-TR", { month: "short" }), ...v, toplam: v.yakit + v.servis + v.masraf }));
-    return { yakitT, servisT, masrafT, toplam, aylikArr };
+    const tumTarihler = [...dolumlar.map((d) => d.tarih), ...masraflar.map((m) => m.tarih)].sort();
+    const gunSayisi = tumTarihler.length >= 2
+      ? Math.max(1, Math.round((new Date(tumTarihler[tumTarihler.length - 1]) - new Date(tumTarihler[0])) / 86400000) + 1)
+      : 1;
+    return { yakitT, servisT, masrafT, toplam, aylikArr, gunSayisi, gunlukOrt: toplam / gunSayisi, kayitSayisi: dolumlar.length + masraflar.length };
   }, [dolumlar, masraflar]);
-
-  const donutData = [
-    { name: "Yakıt", value: h.yakitT, renk: T.yakit },
-    { name: "Masraf", value: h.masrafT, renk: T.masraf },
-    { name: "Servis", value: h.servisT, renk: T.servis },
-  ].filter((d) => d.value > 0);
 
   if (h.toplam === 0) {
     return <BosDurum ikon={<BarChart2 size={32} color={T.textMuted} />} başlık="Finansal veri yok" açıklama="Dolum ve masraf ekledikçe maliyet özetin burada oluşur." />;
   }
 
+  const kategoriler = [
+    { l: "Yakıt", v: h.yakitT, renk: T.yakit, dim: T.primaryDim, ikon: <Fuel size={18} color={T.yakit} /> },
+    { l: "Masraf", v: h.masrafT, renk: T.masraf, dim: T.warningDim, ikon: <Receipt size={18} color={T.masraf} /> },
+    { l: "Servis", v: h.servisT, renk: T.servis, dim: T.successDim, ikon: <Wrench size={18} color={T.servis} /> },
+  ].filter((d) => d.v > 0);
+
   return (
     <div>
-      {/* Toplam maliyet kartı */}
-      <div style={{ background: T.navy, borderRadius: 16, padding: "20px 22px", marginBottom: 16, color: "#fff" }}>
-        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 6 }}>TOPLAM MALİYET</div>
-        <div style={{ fontSize: 30, fontWeight: 800 }}>{fmtTRY(h.toplam)}</div>
-      </div>
-
-      {/* Donut dağılım */}
-      <div style={{ background: T.card, borderRadius: 16, padding: 18, marginBottom: 16, border: `1px solid ${T.border}` }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 12 }}>Gider Dağılımı</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 18 }}>
-          <div style={{ width: 130, height: 130, flexShrink: 0 }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={donutData} dataKey="value" cx="50%" cy="50%" innerRadius={42} outerRadius={62} paddingAngle={2} stroke="none">
-                  {donutData.map((e, i) => <Cell key={i} fill={e.renk} />)}
-                </Pie>
-                <Tooltip formatter={(v) => fmtTRY(v)} contentStyle={{ borderRadius: 10, border: `1px solid ${T.border}`, fontSize: 12 }} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div style={{ flex: 1 }}>
-            {donutData.map((d) => (
-              <div key={d.name} style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 11 }}>
-                <span style={{ width: 11, height: 11, borderRadius: 3, background: d.renk, flexShrink: 0 }} />
-                <span style={{ fontSize: 13, color: T.textSub, flex: 1 }}>{d.name}</span>
-                <span style={{ fontSize: 13, fontWeight: 700, color: T.text }}>{fmtTRY(d.value)}</span>
+      {/* ── Hero card (navy) ── */}
+      <div style={{ background: T.navy, borderRadius: 16, padding: "20px 18px 18px", marginBottom: 14 }}>
+        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", fontWeight: 600, letterSpacing: "0.07em", marginBottom: 4 }}>
+          TOPLAM MALİYET · {h.kayitSayisi} kayıt · {h.gunSayisi} gün
+        </div>
+        <div style={{ fontSize: 36, fontWeight: 800, color: "#fff", lineHeight: 1.1, marginBottom: 4 }}>{fmtTRY(h.toplam)}</div>
+        <div style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{fmtTRY(h.gunlukOrt)} / gün ortalama</div>
+        <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+          {[
+            { l: "Yakıt", v: h.yakitT, renk: "#60A5FA" },
+            { l: "Masraf", v: h.masrafT, renk: "#FBB040" },
+            { l: "Servis", v: h.servisT, renk: "#4ADE80" },
+          ].filter((d) => d.v > 0).map((d) => (
+            <div key={d.l} style={{ flex: 1, background: "rgba(255,255,255,0.09)", borderRadius: 10, padding: "10px 10px 9px" }}>
+              <div style={{ fontSize: 10, color: d.renk, fontWeight: 700, letterSpacing: "0.04em" }}>{d.l.toUpperCase()}</div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", marginTop: 4 }}>{fmtTRY(d.v)}</div>
+              <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+                {h.toplam > 0 ? Math.round((d.v / h.toplam) * 100) : 0}%
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* Aylık stacked bar */}
+      {/* ── Maliyet Dağılımı (Drivvo cost-split style) ── */}
+      <div style={{ background: T.card, borderRadius: 16, padding: "18px 18px 6px", marginBottom: 14, border: `1px solid ${T.border}` }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 16 }}>Maliyet Dağılımı</div>
+        {kategoriler.map((d, i) => {
+          const pct = h.toplam > 0 ? (d.v / h.toplam) * 100 : 0;
+          return (
+            <div key={d.l} style={{ marginBottom: 18 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 8 }}>
+                <div style={{ width: 42, height: 42, borderRadius: "50%", background: d.dim, border: `2px solid ${d.renk}30`, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                  {d.ikon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600, letterSpacing: "0.04em" }}>{d.l.toUpperCase()}</div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: T.text, marginTop: 1 }}>{fmtTRY(d.v)}</div>
+                </div>
+                <div style={{ fontSize: 18, fontWeight: 800, color: d.renk }}>{pct.toFixed(1)}<span style={{ fontSize: 11 }}>%</span></div>
+              </div>
+              <div style={{ height: 7, background: T.bg, borderRadius: 4 }}>
+                <div style={{ height: 7, background: d.renk, borderRadius: 4, width: `${pct}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ── Aylık stacked bar ── */}
       {h.aylikArr.length > 0 && (
-        <div style={{ background: T.card, borderRadius: 16, padding: "18px 10px 10px", marginBottom: 16, border: `1px solid ${T.border}` }}>
+        <div style={{ background: T.card, borderRadius: 16, padding: "18px 10px 10px", marginBottom: 14, border: `1px solid ${T.border}` }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: T.text, padding: "0 8px 14px" }}>Aylık Gider</div>
-          <ResponsiveContainer width="100%" height={170}>
+          <ResponsiveContainer width="100%" height={190}>
             <BarChart data={h.aylikArr} margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={T.borderLight} vertical={false} />
               <XAxis dataKey="ay" tick={{ fill: T.textMuted, fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -875,7 +895,7 @@ function FinansalEkran({ arac, dolumlar, masraflar }) {
         </div>
       )}
 
-      {/* Alım/satış kâr-zarar */}
+      {/* ── Alım/satış kâr-zarar ── */}
       {(arac.alimTutari || arac.satisTutari) && (
         <div style={{ background: T.card, borderRadius: 16, padding: 18, border: `1px solid ${T.border}` }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: T.text, marginBottom: 14 }}>Alım / Satış</div>
