@@ -4,7 +4,7 @@ import {
   Plus, Fuel, Gauge, TrendingUp, Car, ChevronLeft, ChevronDown, Copy, Check, Trash2, Pencil, X,
   Wallet, Receipt, Bike, Bus, Truck, Sailboat, Tractor, Caravan, AlertTriangle,
   Image as ImageIcon, Bell, BarChart2, Camera, Wrench, Calendar, Clock, FileText,
-  MapPin, ChevronRight, TrendingDown, List,
+  MapPin, ChevronRight, TrendingDown, List, User,
 } from "lucide-react";
 
 // ═════════════════════════════════════════════════════════════
@@ -156,7 +156,7 @@ async function stSet(k, v) {
   }
   bellekMap.set(k, v); return true;
 }
-function bosVeri() { return { araclar: [], doldurmalar: {}, masraflar: {}, eposta: null }; }
+function bosVeri() { return { araclar: [], doldurmalar: {}, masraflar: {}, eposta: null, ad: null, telefon: null }; }
 
 // ═════════════════════════════════════════════════════════════
 // TEMA — Drivvo (açık tema, lacivert üst bar, mavi vurgu)
@@ -297,6 +297,50 @@ function olayStili(tip) {
 // ═════════════════════════════════════════════════════════════
 // GİRİŞ EKRANI
 // ═════════════════════════════════════════════════════════════
+function ProfilModal({ kod, veri, onKapat, onGuncelle, onCikis }) {
+  const [ad, setAd] = useState(veri.ad || "");
+  const [eposta, setEposta] = useState(veri.eposta || "");
+  const [telefon, setTelefon] = useState(veri.telefon || "");
+  const [kopya, setKopya] = useState(false);
+
+  function kaydet() {
+    onGuncelle({ ...veri, ad: ad.trim() || null, eposta: eposta.trim() || null, telefon: telefon.trim() || null });
+    onKapat();
+  }
+
+  return (
+    <Modal başlık="Profil & Ayarlar" onKapat={onKapat} yükseklik="85vh"
+      footer={<ModalFooter onKapat={onKapat} onKaydet={kaydet} kaydetLabel="Kaydet" />}>
+
+      <div style={{ background: T.primaryDim, border: `1px solid rgba(30,111,217,0.2)`, borderRadius: 14, padding: "18px 20px", marginBottom: 16, textAlign: "center" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: T.textSub, letterSpacing: "0.06em", marginBottom: 10 }}>GİRİŞ KODUN</div>
+        <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: "0.22em", color: T.primary }}>{kod}</div>
+        <button onClick={() => { navigator.clipboard?.writeText(kod); setKopya(true); setTimeout(() => setKopya(false), 2000); }}
+          style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, color: T.textSub, fontSize: 13 }}>
+          {kopya ? <Check size={14} color={T.success} /> : <Copy size={14} />}
+          {kopya ? "Kopyalandı!" : "Kopyala"}
+        </button>
+        <div style={{ fontSize: 11, color: T.textMuted, marginTop: 8, lineHeight: 1.5 }}>Bu kodu kaybedersen hesabına erişemezsin. Bir yere not al.</div>
+      </div>
+
+      <div style={{ background: T.warningDim, border: `1px solid rgba(232,146,12,0.25)`, borderRadius: 10, padding: "10px 14px", marginBottom: 18 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.warning }}>⚠️ Veriler bu cihaza özel kaydedilir</div>
+        <div style={{ fontSize: 12, color: T.textSub, marginTop: 3, lineHeight: 1.5 }}>Başka bir cihazdan aynı kodla giriş yapsan bile veriler oraya geçmez. CSV export yakında geliyor.</div>
+      </div>
+
+      <Input label="İsim (opsiyonel)" value={ad} onChange={setAd} placeholder="Adın Soyadın" />
+      <Input label="E-posta (opsiyonel)" value={eposta} onChange={setEposta} placeholder="ornek@email.com" type="email" />
+      <Input label="Telefon (opsiyonel)" value={telefon} onChange={setTelefon} placeholder="+90 555 000 00 00" />
+
+      <div style={{ height: 1, background: T.border, margin: "8px 0 14px" }} />
+      <button onClick={() => { onKapat(); onCikis(); }}
+        style={{ width: "100%", padding: 14, borderRadius: 12, border: `1px solid ${T.border}`, background: T.card, color: T.textSub, fontSize: 14, fontWeight: 600 }}>
+        Oturumu Kapat
+      </button>
+    </Modal>
+  );
+}
+
 function GirisEkrani({ onGiris }) {
   const [sekme, setSekme] = useState("giris");
   const [girisKod, setGirisKod] = useState("");
@@ -304,13 +348,20 @@ function GirisEkrani({ onGiris }) {
   const [eposta, setEposta] = useState("");
   const [hata, setHata] = useState("");
   const [kopya, setKopya] = useState(false);
+  const [cihazdaYok, setCihazdaYok] = useState(false);
 
   async function girisYap() {
     const k = girisKod.trim();
     if (k.length !== 6 || !/^\d+$/.test(k)) { setHata("6 haneli rakamsal kod gir."); return; }
     const d = await stGet(`data:${k}`);
-    if (!d) { setHata("Bu kod kayıtlı değil."); return; }
+    if (!d) { setHata(""); setCihazdaYok(true); return; }
     onGiris(k, d);
+  }
+  async function buKodlaBasla() {
+    const k = girisKod.trim();
+    const yeni = bosVeri();
+    await stSet(`data:${k}`, yeni);
+    onGiris(k, yeni);
   }
   async function hesapOlustur() {
     const mevcut = await stGet(`data:${yeniKod}`);
@@ -340,13 +391,30 @@ function GirisEkrani({ onGiris }) {
           ))}
         </div>
         <div style={{ background: "#fff", borderRadius: 16, padding: 24 }}>
-          {sekme === "giris" && (
+          {sekme === "giris" && !cihazdaYok && (
             <>
               <Field label="6 Haneli Kodun">
-                <input value={girisKod} onChange={(e) => setGirisKod(e.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="123456" maxLength={6} inputMode="numeric"
+                <input value={girisKod} onChange={(e) => { setGirisKod(e.target.value.replace(/\D/g, "").slice(0, 6)); setCihazdaYok(false); }} placeholder="123456" maxLength={6} inputMode="numeric"
                   style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", color: T.text, fontSize: 24, fontWeight: 700, letterSpacing: "0.2em", textAlign: "center" }} />
               </Field>
               <button onClick={girisYap} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700 }}>Giriş Yap</button>
+            </>
+          )}
+          {sekme === "giris" && cihazdaYok && (
+            <>
+              <div style={{ textAlign: "center", padding: "6px 0 16px" }}>
+                <div style={{ fontSize: 32, marginBottom: 10 }}>📱</div>
+                <div style={{ fontSize: 15, fontWeight: 700, color: T.text, marginBottom: 8 }}>Bu cihazda kayıt bulunamadı</div>
+                <div style={{ fontSize: 12, color: T.textSub, lineHeight: 1.6 }}>
+                  Uygulama verilerini cihaza özel saklar. Başka bir cihazda oluşturduğun veriler otomatik aktarılmaz.
+                </div>
+              </div>
+              <button onClick={buKodlaBasla} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+                {girisKod} koduyla bu cihazda başla
+              </button>
+              <button onClick={() => { setCihazdaYok(false); setGirisKod(""); }} style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, color: T.textSub, borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600 }}>
+                Farklı Kod Dene
+              </button>
             </>
           )}
           {sekme === "yeni" && (
@@ -412,6 +480,12 @@ export default function App() {
   async function kaydet(yeniVeri) { setVeri(yeniVeri); await stSet(`data:${kod}`, yeniVeri); }
   function girisYap(k, d) { setKod(k); setVeri(d); setAktifAracId(d.araclar[0]?.id || null); }
   function cikis() { setKod(null); setVeri(bosVeri()); setAktifAracId(null); setEkran("zaman"); }
+  async function profilGuncelle(yeniVeri) {
+    if (yeniVeri.eposta && yeniVeri.eposta !== veri.eposta) {
+      await stSet(`email:${yeniVeri.eposta.toLowerCase()}`, kod);
+    }
+    await kaydet(yeniVeri);
+  }
 
   async function aracKaydet(form) {
     const yeni = { ...bosAracForm(), ...form, id: editArac?.id || yeniId() };
@@ -502,6 +576,7 @@ export default function App() {
             </div>
           </button>
           <div style={{ display: "flex", gap: 6 }}>
+            <button onClick={() => setModal("profil")} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><User size={16} color="#fff" /></button>
             <button onClick={() => { setEditArac(aktifArac); setModal("arac"); }} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={16} color="#fff" /></button>
             <button onClick={cikis} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={16} color="#fff" /></button>
           </div>
@@ -555,11 +630,12 @@ export default function App() {
           <div style={{ position: "absolute", inset: 0, background: "rgba(19,41,61,0.55)" }} />
           <div style={{ position: "absolute", right: 22, bottom: 92, display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }} onClick={(e) => e.stopPropagation()}>
             {[
-              { tip: "dolum", l: "Dolum", ikon: <Fuel size={20} color="#fff" />, renk: T.yakit },
-              { tip: "masraf", l: "Masraf", ikon: <Receipt size={20} color="#fff" />, renk: T.masraf },
-              { tip: "servis", l: "Servis", ikon: <Wrench size={20} color="#fff" />, renk: T.servis },
-            ].map((it) => (
-              <button key={it.tip} onClick={() => { setEditKayit(null); setModal(it.tip); }} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              { l: "Araç Ekle", ikon: <Car size={20} color="#fff" />, renk: T.navy, cb: () => { setEditArac(null); setModal("arac"); } },
+              { l: "Dolum", ikon: <Fuel size={20} color="#fff" />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); } },
+              { l: "Masraf", ikon: <Receipt size={20} color="#fff" />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); } },
+              { l: "Servis", ikon: <Wrench size={20} color="#fff" />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); } },
+            ].map((it, i) => (
+              <button key={i} onClick={it.cb} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", background: "rgba(0,0,0,0.3)", padding: "6px 12px", borderRadius: 8 }}>{it.l}</span>
                 <span style={{ width: 50, height: 50, borderRadius: 25, background: it.renk, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 12px rgba(0,0,0,0.3)" }}>{it.ikon}</span>
               </button>
@@ -578,6 +654,7 @@ export default function App() {
       {modal === "dolum" && <DolumFormModal mevcut={editKayit} yakitListesi={aktifArac.yakitTipleri || [aktifArac.anaYakitTipi || "benzin"]} onKaydet={dolumKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
       {modal === "masraf" && <MasrafFormModal mevcut={editKayit} tip="masraf" onKaydet={masrafKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
       {modal === "servis" && <MasrafFormModal mevcut={editKayit} tip="servis" onKaydet={masrafKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
+      {modal === "profil" && <ProfilModal kod={kod} veri={veri} onKapat={() => setModal(null)} onGuncelle={profilGuncelle} onCikis={cikis} />}
     </div>
   );
 }
@@ -619,7 +696,7 @@ function ZamanCizelgesi({ dolumlar, masraflar, onDolumDuzenle, onDolumSil, onMas
           {list.map((o) => {
             const st = olayStili(o._tip);
             return (
-              <div key={o.id} style={{ background: T.card, borderRadius: 14, padding: "13px 14px", marginBottom: 8, display: "flex", gap: 13, alignItems: "center", border: `1px solid ${T.border}` }}>
+              <div key={o.id} style={{ background: T.card, borderRadius: 14, padding: "13px 14px", marginBottom: 8, display: "flex", gap: 13, alignItems: "center", border: `1px solid ${T.border}`, borderLeft: `4px solid ${st.renk}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: st.renk, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{st.ikon}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
