@@ -121,5 +121,15 @@ src/App.jsx veya landing/index.html değiştir
 | `/deploy` | Deploy Agent | Build → commit → push |
 | `/landing` | Landing Agent | Marketing site güncellemeleri |
 | `/ship` | Orchestrator | feature + review + deploy pipeline |
+| `/spy-drivvo` | Drivvo Spy | Drivvo'nun özellik / UI / review taraması |
+| `/spy-market` | Market Spy | Pazar haritası, rakip analizi, trendler |
+| `/spy-ux` | UX Spy | Mobil UX pattern araştırması, görsel iyileştirme önerileri |
+
+**Önerilen workflow:**
+```
+/spy-drivvo → bulgular → /ship "bulunan özelliği implement et"
+/spy-ux     → bulgular → /feature "önerilen UI değişikliğini uygula"
+/spy-market → bulgular → ürün kararı → /ship
+```
 
 Ajanlar birbirini `Agent` tool ile çağırır. Her ajan bu CLAUDE.md'yi okuyarak bağlamı alır.
