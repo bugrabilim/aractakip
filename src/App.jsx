@@ -1,10 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import {
   Plus, Fuel, Gauge, TrendingUp, Car, ChevronLeft, ChevronDown, Copy, Check, Trash2, Pencil, X,
   Wallet, Receipt, Bike, Bus, Truck, Sailboat, Tractor, Caravan, AlertTriangle,
   Image as ImageIcon, Bell, BarChart2, Camera, Wrench, Calendar, Clock, FileText,
-  MapPin, ChevronRight, TrendingDown, List, User,
+  MapPin, ChevronRight, TrendingDown, List, User, Menu,
 } from "lucide-react";
 
 // ═════════════════════════════════════════════════════════════
@@ -343,6 +343,95 @@ function ProfilModal({ kod, veri, onKapat, onGuncelle, onCikis }) {
   );
 }
 
+// ─── RESPONSIVE BREAKPOINT ─────────────────────────────────────
+function useGenis() {
+  const [g, setG] = useState(() => window.innerWidth >= 768);
+  useEffect(() => {
+    const f = () => setG(window.innerWidth >= 768);
+    window.addEventListener("resize", f);
+    return () => window.removeEventListener("resize", f);
+  }, []);
+  return g;
+}
+
+// ─── SOL MENÜ (desktop sidebar + mobil drawer) ─────────────────
+function SolMenu({ ekran, setEkran, aktifArac, araclar, setAktifAracId, setModal, setEditArac, setEditKayit, cikis, kod, onKapat }) {
+  const navItems = [
+    { id: "zaman", l: "Akış", ikon: <List size={17} /> },
+    { id: "finansal", l: "Finansal", ikon: <BarChart2 size={17} /> },
+    { id: "yakit", l: "Yakıt", ikon: <Fuel size={17} /> },
+    { id: "bilgi", l: "Araç Bilgisi", ikon: <FileText size={17} /> },
+  ];
+  const ekleItems = [
+    { l: "Dolum Ekle", ikon: <Fuel size={15} />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); onKapat?.(); } },
+    { l: "Masraf Ekle", ikon: <Receipt size={15} />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); onKapat?.(); } },
+    { l: "Servis Ekle", ikon: <Wrench size={15} />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); onKapat?.(); } },
+    { l: "Araç Ekle", ikon: <Car size={15} />, renk: T.primary, cb: () => { setEditArac(null); setModal("arac"); onKapat?.(); } },
+  ];
+  return (
+    <div style={{ width: "100%", height: "100%", background: T.navy, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <div style={{ padding: "22px 18px 16px", display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 34, height: 34, borderRadius: 10, background: T.primary, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+          <Car size={18} color="#fff" />
+        </div>
+        <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Araç Takip</span>
+        {onKapat && <button onClick={onKapat} style={{ marginLeft: "auto", color: "rgba(255,255,255,0.4)", display: "flex" }}><X size={20} /></button>}
+      </div>
+      {aktifArac && (
+        <div style={{ margin: "0 12px 12px" }}>
+          <button onClick={() => { setModal("aracSecici"); onKapat?.(); }} style={{ width: "100%", background: "rgba(255,255,255,0.09)", borderRadius: 12, padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
+              {aktifArac.foto ? <img src={aktifArac.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <TasitIkonu tip={aktifArac.tasitTipi} size={16} color="#fff" />}
+            </div>
+            <div style={{ flex: 1, textAlign: "left", overflow: "hidden" }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aktifArac.marka} {aktifArac.model}</div>
+              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{aktifArac.plaka || tl(aktifArac.tasitTipi)}</div>
+            </div>
+            <ChevronDown size={14} color="rgba(255,255,255,0.4)" />
+          </button>
+        </div>
+      )}
+      <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
+        <div style={{ padding: "8px 16px 6px" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.28)", letterSpacing: "0.09em" }}>GÖRÜNÜM</span>
+        </div>
+        {navItems.map((item) => (
+          <button key={item.id} onClick={() => { setEkran(item.id); onKapat?.(); }} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "11px 16px",
+            color: ekran === item.id ? "#fff" : "rgba(255,255,255,0.5)",
+            background: ekran === item.id ? "rgba(255,255,255,0.12)" : "transparent",
+            fontSize: 13, fontWeight: ekran === item.id ? 700 : 500,
+            borderLeft: `3px solid ${ekran === item.id ? T.primary : "transparent"}`,
+          }}>
+            {item.ikon} {item.l}
+          </button>
+        ))}
+        <div style={{ padding: "14px 16px 6px" }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.28)", letterSpacing: "0.09em" }}>KAYIT EKLE</span>
+        </div>
+        {ekleItems.map((item) => (
+          <button key={item.l} onClick={item.cb} style={{
+            width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+            color: "rgba(255,255,255,0.55)", background: "transparent", fontSize: 13, fontWeight: 500,
+            borderLeft: "3px solid transparent",
+          }}>
+            <span style={{ color: item.renk, display: "flex" }}>{item.ikon}</span>{item.l}
+          </button>
+        ))}
+      </div>
+      <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "14px 12px" }}>
+        <button onClick={() => { setModal("profil"); onKapat?.(); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 8px", borderRadius: 10, color: "rgba(255,255,255,0.6)", fontSize: 13, background: "transparent" }}>
+          <User size={15} /><span style={{ flex: 1, textAlign: "left" }}>Profil</span>
+          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 700, letterSpacing: "0.12em" }}>{kod}</span>
+        </button>
+        <button onClick={cikis} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "7px 8px", color: "rgba(255,255,255,0.3)", fontSize: 13, background: "transparent" }}>
+          <X size={15} /><span>Çıkış Yap</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function GirisEkrani({ onGiris }) {
   const [sekme, setSekme] = useState("giris");
   const [girisKod, setGirisKod] = useState("");
@@ -512,6 +601,8 @@ export default function App() {
   const [modal, setModal] = useState(null);         // fab | arac | dolum | masraf | servis | aracSecici
   const [editKayit, setEditKayit] = useState(null);
   const [editArac, setEditArac] = useState(null);
+  const genis = useGenis();
+  const [cekme, setCekme] = useState(false);
 
   const aktifArac = veri.araclar.find((a) => a.id === aktifAracId) || veri.araclar[0] || null;
 
@@ -601,86 +692,146 @@ export default function App() {
   const aylikMasraf = masraflar.filter((m) => m.tip === "masraf" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
   const aylikServis = masraflar.filter((m) => m.tip === "servis" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
 
+  const EKRAN_ADI = { zaman: "Aktivite Akışı", finansal: "Finansal Özet", yakit: "Yakıt Takibi", bilgi: "Araç Bilgisi" };
+  const menuProps = { ekran, setEkran, aktifArac, araclar: veri.araclar, setAktifAracId, setModal, setEditArac, setEditKayit, cikis, kod };
+
   return (
-    <div style={{ minHeight: "100vh", background: T.bg, maxWidth: 480, margin: "0 auto", position: "relative" }}>
+    <div style={{ minHeight: "100vh", background: T.bg }}>
       <style>{globalCss}</style>
 
-      {/* ── LACİVERT ÜST BAR + ARAÇ SEÇİCİ ── */}
-      <div style={{ background: T.navy, paddingTop: 44 }}>
-        <div style={{ padding: "0 16px 14px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={() => setModal("aracSecici")} style={{ display: "flex", alignItems: "center", gap: 10, color: "#fff" }}>
-            <div style={{ width: 38, height: 38, borderRadius: 11, background: "rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden" }}>
-              {aktifArac.foto ? <img src={aktifArac.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <TasitIkonu tip={aktifArac.tasitTipi} size={20} color="#fff" />}
-            </div>
-            <div style={{ textAlign: "left" }}>
-              <div style={{ fontSize: 16, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>{aktifArac.marka} {aktifArac.model} <ChevronDown size={16} /></div>
-              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{aktifArac.plaka || tl(aktifArac.tasitTipi)}{sk ? ` · ${fmtSayi(sk, 0)} km` : ""}</div>
-            </div>
-          </button>
-          <div style={{ display: "flex", gap: 6 }}>
-            <button onClick={() => setModal("profil")} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><User size={16} color="#fff" /></button>
-            <button onClick={() => { setEditArac(aktifArac); setModal("arac"); }} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={16} color="#fff" /></button>
-            <button onClick={cikis} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={16} color="#fff" /></button>
+      {/* ── DESKTOP: SABİT SOL MENÜ ── */}
+      {genis && (
+        <div style={{ position: "fixed", left: 0, top: 0, bottom: 0, width: 220, zIndex: 100, overflowY: "auto" }}>
+          <SolMenu {...menuProps} />
+        </div>
+      )}
+
+      {/* ── MOBİL: HAMBURGER DRAWER ── */}
+      {!genis && cekme && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 200 }} onClick={() => setCekme(false)}>
+          <div style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.55)" }} />
+          <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: 280, overflowY: "auto" }} onClick={(e) => e.stopPropagation()}>
+            <SolMenu {...menuProps} onKapat={() => setCekme(false)} />
           </div>
         </div>
+      )}
 
-        {/* Üst bar sekmeleri */}
-        <div style={{ display: "flex", padding: "4px 8px 0" }}>
-          {[
-            { id: "zaman", l: "Akış" }, { id: "finansal", l: "Finansal" },
-            { id: "yakit", l: "Yakıt" }, { id: "bilgi", l: "Bilgi" },
-          ].map((t) => (
-            <button key={t.id} onClick={() => setEkran(t.id)} style={{ flex: 1, padding: "9px 4px", margin: "0 2px", fontSize: 13, fontWeight: 600, color: ekran === t.id ? "#fff" : "rgba(255,255,255,0.5)", background: ekran === t.id ? "rgba(255,255,255,0.15)" : "transparent", borderRadius: "8px 8px 0 0", transition: "all 0.18s" }}>{t.l}</button>
-          ))}
-        </div>
-
-        {/* Bu ay özet strip */}
-        {(aylikYakit + aylikMasraf + aylikServis) > 0 && (
-          <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px 14px" }}>
-            {[
-              { l: "Yakıt", v: fmtTRY(aylikYakit) },
-              { l: "Masraf", v: fmtTRY(aylikMasraf) },
-              { l: "Servis", v: fmtTRY(aylikServis) },
-            ].map((s, i) => (
-              <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{s.v}</div>
-                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{s.l}</div>
+      {/* ── ANA İÇERİK ── */}
+      <div style={genis
+        ? { marginLeft: 220, minHeight: "100vh", display: "flex", flexDirection: "column" }
+        : { maxWidth: 480, margin: "0 auto", position: "relative" }
+      }>
+        {/* DESKTOP TOP BAR */}
+        {genis && (
+          <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: "0 32px", display: "flex", alignItems: "center", height: 64, position: "sticky", top: 0, zIndex: 50 }}>
+            <div style={{ fontSize: 17, fontWeight: 800, color: T.text }}>{EKRAN_ADI[ekran]}</div>
+            <div style={{ flex: 1 }} />
+            {(aylikYakit + aylikMasraf + aylikServis) > 0 && (
+              <div style={{ display: "flex", gap: 24, marginRight: 24 }}>
+                {[
+                  { l: "BU AY YAKIT", v: fmtTRY(aylikYakit), c: T.yakit },
+                  { l: "BU AY MASRAF", v: fmtTRY(aylikMasraf), c: T.masraf },
+                  { l: "BU AY SERVİS", v: fmtTRY(aylikServis), c: T.servis },
+                ].map((s) => (
+                  <div key={s.l} style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
+                    <div style={{ fontSize: 10, color: T.textMuted, fontWeight: 600, letterSpacing: "0.05em" }}>{s.l}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── İÇERİK ── */}
-      <div style={{ padding: "16px 16px 96px" }}>
-        {uw.length > 0 && ekran !== "bilgi" && (
-          <div style={{ marginBottom: 16, background: T.card, borderRadius: 14, overflow: "hidden", border: `1px solid ${T.border}` }}>
-            <div style={{ padding: "10px 14px", background: uw.some((u) => u.tip === "gecmis") ? T.dangerDim : T.warningDim, display: "flex", alignItems: "center", gap: 8 }}>
-              <Bell size={15} color={uw.some((u) => u.tip === "gecmis") ? T.danger : T.warning} />
-              <span style={{ fontSize: 13, fontWeight: 700, color: uw.some((u) => u.tip === "gecmis") ? T.danger : T.warning }}>{uw.length} hatırlatma</span>
-            </div>
-            <div style={{ padding: "4px 14px 10px" }}>
-              {uw.map((u, i) => (
-                <div key={i} style={{ fontSize: 13, color: u.tip === "gecmis" ? T.danger : T.warning, padding: "5px 0", display: "flex", alignItems: "center", gap: 7 }}>
-                  <span style={{ width: 5, height: 5, borderRadius: 3, background: "currentColor", flexShrink: 0 }} />{u.m}
-                </div>
+            )}
+            <div style={{ display: "flex", gap: 8 }}>
+              {[
+                { l: "Dolum", ikon: <Fuel size={14} />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); } },
+                { l: "Masraf", ikon: <Receipt size={14} />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); } },
+                { l: "Servis", ikon: <Wrench size={14} />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); } },
+              ].map((b) => (
+                <button key={b.l} onClick={b.cb} style={{ padding: "8px 14px", background: b.renk, color: "#fff", borderRadius: 9, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                  {b.ikon} {b.l}
+                </button>
               ))}
             </div>
           </div>
         )}
 
-        {ekran === "zaman" && <ZamanCizelgesi dolumlar={dolumlar} masraflar={masraflar}
-          onDolumDuzenle={(d) => { setEditKayit(d); setModal("dolum"); }} onDolumSil={dolumSil}
-          onMasrafDuzenle={(m) => { setEditKayit(m); setModal(m.tip === "servis" ? "servis" : "masraf"); }} onMasrafSil={masrafSil} />}
-        {ekran === "finansal" && <FinansalEkran arac={aktifArac} dolumlar={dolumlar} masraflar={masraflar} />}
-        {ekran === "yakit" && <YakitEkran dolumlar={dolumlar} />}
-        {ekran === "bilgi" && <BilgiEkran arac={aktifArac} sk={sk} uyarilar={uw} />}
-      </div>
+        {/* MOBİL HEADER */}
+        {!genis && (
+          <div style={{ background: T.navy, paddingTop: 44 }}>
+            <div style={{ padding: "0 16px 14px", display: "flex", alignItems: "center", gap: 8 }}>
+              <button onClick={() => setCekme(true)} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <Menu size={18} color="#fff" />
+              </button>
+              <button onClick={() => setModal("aracSecici")} style={{ display: "flex", alignItems: "center", gap: 10, color: "#fff", flex: 1, minWidth: 0 }}>
+                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                  {aktifArac.foto ? <img src={aktifArac.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <TasitIkonu tip={aktifArac.tasitTipi} size={18} color="#fff" />}
+                </div>
+                <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>{aktifArac.marka} {aktifArac.model} <ChevronDown size={15} /></div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{aktifArac.plaka || tl(aktifArac.tasitTipi)}{sk ? ` · ${fmtSayi(sk, 0)} km` : ""}</div>
+                </div>
+              </button>
+              <div style={{ display: "flex", gap: 6 }}>
+                <button onClick={() => { setEditArac(aktifArac); setModal("arac"); }} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={16} color="#fff" /></button>
+                <button onClick={cikis} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={16} color="#fff" /></button>
+              </div>
+            </div>
+            <div style={{ display: "flex", padding: "4px 8px 0" }}>
+              {[
+                { id: "zaman", l: "Akış" }, { id: "finansal", l: "Finansal" },
+                { id: "yakit", l: "Yakıt" }, { id: "bilgi", l: "Bilgi" },
+              ].map((t) => (
+                <button key={t.id} onClick={() => setEkran(t.id)} style={{ flex: 1, padding: "9px 4px", margin: "0 2px", fontSize: 13, fontWeight: 600, color: ekran === t.id ? "#fff" : "rgba(255,255,255,0.5)", background: ekran === t.id ? "rgba(255,255,255,0.15)" : "transparent", borderRadius: "8px 8px 0 0", transition: "all 0.18s" }}>{t.l}</button>
+              ))}
+            </div>
+            {(aylikYakit + aylikMasraf + aylikServis) > 0 && (
+              <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px 14px" }}>
+                {[
+                  { l: "Yakıt", v: fmtTRY(aylikYakit) },
+                  { l: "Masraf", v: fmtTRY(aylikMasraf) },
+                  { l: "Servis", v: fmtTRY(aylikServis) },
+                ].map((s, i) => (
+                  <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{s.v}</div>
+                    <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{s.l}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* ── FAB ── */}
-      <button onClick={() => setModal("fab")} style={{ position: "fixed", right: 22, bottom: 24, width: 58, height: 58, borderRadius: 29, background: T.primary, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(30,111,217,0.45)", zIndex: 50 }}>
-        <Plus size={28} color="#fff" strokeWidth={2.4} />
-      </button>
+        {/* ── İÇERİK ── */}
+        <div style={{ padding: genis ? "28px 32px 60px" : "16px 16px 96px", flex: genis ? 1 : undefined }}>
+          {uw.length > 0 && ekran !== "bilgi" && (
+            <div style={{ marginBottom: 16, background: T.card, borderRadius: 14, overflow: "hidden", border: `1px solid ${T.border}` }}>
+              <div style={{ padding: "10px 14px", background: uw.some((u) => u.tip === "gecmis") ? T.dangerDim : T.warningDim, display: "flex", alignItems: "center", gap: 8 }}>
+                <Bell size={15} color={uw.some((u) => u.tip === "gecmis") ? T.danger : T.warning} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: uw.some((u) => u.tip === "gecmis") ? T.danger : T.warning }}>{uw.length} hatırlatma</span>
+              </div>
+              <div style={{ padding: "4px 14px 10px" }}>
+                {uw.map((u, i) => (
+                  <div key={i} style={{ fontSize: 13, color: u.tip === "gecmis" ? T.danger : T.warning, padding: "5px 0", display: "flex", alignItems: "center", gap: 7 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: 3, background: "currentColor", flexShrink: 0 }} />{u.m}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          {ekran === "zaman" && <ZamanCizelgesi dolumlar={dolumlar} masraflar={masraflar}
+            onDolumDuzenle={(d) => { setEditKayit(d); setModal("dolum"); }} onDolumSil={dolumSil}
+            onMasrafDuzenle={(m) => { setEditKayit(m); setModal(m.tip === "servis" ? "servis" : "masraf"); }} onMasrafSil={masrafSil} />}
+          {ekran === "finansal" && <FinansalEkran arac={aktifArac} dolumlar={dolumlar} masraflar={masraflar} />}
+          {ekran === "yakit" && <YakitEkran dolumlar={dolumlar} />}
+          {ekran === "bilgi" && <BilgiEkran arac={aktifArac} sk={sk} uyarilar={uw} />}
+        </div>
+
+        {/* FAB — sadece mobil */}
+        {!genis && (
+          <button onClick={() => setModal("fab")} style={{ position: "fixed", right: 22, bottom: 24, width: 58, height: 58, borderRadius: 29, background: T.primary, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(30,111,217,0.45)", zIndex: 50 }}>
+            <Plus size={28} color="#fff" strokeWidth={2.4} />
+          </button>
+        )}
+      </div>
 
       {/* ── FAB MENÜSÜ ── */}
       {modal === "fab" && (
