@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Araç Takip — Aracının her kuruşunu yönet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #060C18;
+      --bg-card: #0C1525;
+      --bg-card2: #111C30;
+      --accent: #1E6FD9;
+      --accent-dim: rgba(30,111,217,0.12);
+      --accent-border: rgba(30,111,217,0.28);
+      --green: #10B981;
+      --orange: #E8920C;
+      --text: #F1F5F9;
+      --text-sub: #94A3B8;
+      --text-muted: #475569;
+      --border: rgba(255,255,255,0.07);
+      --border2: rgba(255,255,255,0.13);
+    }
+    html { scroll-behavior: smooth; }
+    body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg); color: var(--text); overflow-x: hidden; }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 0 32px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(6,12,24,0.82); backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .nav-logo-icon { width: 36px; height: 36px; border-radius: 10px; background: var(--accent); display: flex; align-items: center; justify-content: center; }
+    .nav-logo span { font-size: 17px; font-weight: 800; color: var(--text); }
+    .nav-links { display: flex; gap: 32px; list-style: none; }
+    .nav-links a { color: var(--text-sub); text-decoration: none; font-size: 14px; font-weight: 500; transition: color .2s; }
+    .nav-links a:hover { color: var(--text); }
+    .btn-nav { background: var(--accent); color: #fff; border: none; border-radius: 10px; padding: 10px 20px; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; transition: opacity .2s, transform .2s; }
+    .btn-nav:hover { opacity: .9; transform: translateY(-1px); }
+
+    /* ── HERO ── */
+    .hero {
+      min-height: 100vh; display: flex; align-items: center;
+      padding: 100px 32px 60px; position: relative; overflow: hidden;
+    }
+    .hero::before {
+      content: ''; position: absolute; top: -160px; left: 50%; transform: translateX(-50%);
+      width: 900px; height: 700px;
+      background: radial-gradient(ellipse, rgba(30,111,217,0.13) 0%, transparent 68%);
+      pointer-events: none;
+    }
+    .hero-inner { max-width: 1100px; margin: 0 auto; width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: center; }
+    .hero-badge { display: inline-flex; align-items: center; gap: 7px; background: var(--accent-dim); border: 1px solid var(--accent-border); border-radius: 24px; padding: 7px 16px; font-size: 13px; font-weight: 600; color: #93C5FD; margin-bottom: 26px; }
+    .hero h1 { font-size: clamp(36px, 5vw, 58px); font-weight: 900; line-height: 1.08; margin-bottom: 20px; letter-spacing: -0.025em; }
+    .hero h1 span { background: linear-gradient(135deg, #60A5FA, #22D3EE); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .hero p { font-size: 17px; color: var(--text-sub); line-height: 1.75; margin-bottom: 38px; max-width: 470px; }
+    .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 44px; }
+    .btn-cta { background: var(--accent); color: #fff; border: none; border-radius: 13px; padding: 15px 30px; font-size: 15px; font-weight: 700; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all .2s; box-shadow: 0 8px 32px rgba(30,111,217,.38); }
+    .btn-cta:hover { transform: translateY(-2px); box-shadow: 0 14px 44px rgba(30,111,217,.48); }
+    .btn-ghost { background: transparent; color: var(--text-sub); border: 1px solid var(--border2); border-radius: 13px; padding: 15px 24px; font-size: 15px; font-weight: 600; cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 8px; transition: all .2s; }
+    .btn-ghost:hover { background: var(--bg-card2); color: var(--text); }
+    .hero-trust { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); }
+    .green-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); flex-shrink: 0; }
+    .hero-chips { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 20px; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 7px 14px; font-size: 12px; font-weight: 500; color: var(--text-sub); }
+
+    /* ── PHONE MOCKUP ── */
+    .phone-wrap { position: relative; display: flex; justify-content: center; }
+    .float-card {
+      position: absolute; background: var(--bg-card2); border: 1px solid var(--border2);
+      border-radius: 16px; padding: 14px 16px; box-shadow: 0 20px 48px rgba(0,0,0,.5);
+      min-width: 168px;
+    }
+    .float-card-1 { top: 48px; right: -20px; animation: float 4s ease-in-out infinite; }
+    .float-card-2 { bottom: 48px; left: -20px; animation: float 4s ease-in-out infinite 2s; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-10px)} }
+    .fc-label { font-size: 10px; color: var(--text-muted); margin-bottom: 5px; }
+    .fc-value { font-size: 20px; font-weight: 800; color: var(--text); }
+    .fc-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(16,185,129,.16); border-radius: 20px; padding: 3px 9px; font-size: 11px; font-weight: 600; color: #10B981; margin-top: 5px; }
+
+    .phone-outer { width: 270px; height: 548px; border-radius: 44px; background: linear-gradient(145deg,#1a2535,#0d1623); border: 2px solid rgba(255,255,255,.13); padding: 13px; box-shadow: 0 50px 100px rgba(0,0,0,.65), inset 0 1px 0 rgba(255,255,255,.07); position: relative; }
+    .phone-notch { position: absolute; top: 18px; left: 50%; transform: translateX(-50%); width: 72px; height: 5px; background: rgba(255,255,255,.15); border-radius: 3px; z-index: 5; }
+    .phone-screen { width: 100%; height: 100%; border-radius: 33px; overflow: hidden; background: #EFF1F4; }
+    .ph { background: #13293D; padding: 26px 12px 0; }
+    .ph-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .ph-car { display: flex; align-items: center; gap: 7px; }
+    .ph-icon { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.14); display: flex; align-items: center; justify-content: center; }
+    .ph-name { color: #fff; font-size: 11px; font-weight: 700; }
+    .ph-sub { color: rgba(255,255,255,.5); font-size: 8.5px; }
+    .ph-edit { width: 22px; height: 22px; border-radius: 6px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
+    .ph-tabs { display: flex; }
+    .ph-tab { flex: 1; padding: 8px 0; font-size: 8.5px; font-weight: 600; color: rgba(255,255,255,.45); text-align: center; }
+    .ph-tab.on { color: #fff; border-bottom: 2px solid #fff; }
+    .ph-body { padding: 9px; overflow: hidden; }
+    .ph-alert { display: flex; align-items: center; gap: 5px; background: #FDECEC; border-radius: 7px; padding: 6px 9px; margin-bottom: 7px; }
+    .ph-alert span { font-size: 8px; font-weight: 700; color: #DC2626; }
+    .ph-month { font-size: 8px; font-weight: 700; color: #94A3B2; padding: 0 2px; margin-bottom: 5px; }
+    .ph-item { display: flex; align-items: center; gap: 7px; background: #fff; border-radius: 9px; padding: 8px 9px; margin-bottom: 5px; border: 1px solid #E2E7EC; }
+    .ph-dot { width: 28px; height: 28px; border-radius: 7px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .ph-ti { font-size: 10px; font-weight: 700; color: #1A2733; }
+    .ph-si { font-size: 8px; color: #5C6B7A; }
+    .ph-amt { font-size: 10px; font-weight: 700; color: #1A2733; margin-left: auto; }
+    .ph-fab { position: absolute; right: 14px; bottom: 14px; width: 38px; height: 38px; border-radius: 19px; background: #1E6FD9; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 14px rgba(30,111,217,.5); color: #fff; font-size: 22px; font-weight: 300; line-height: 1; }
+
+    /* ── STATS ── */
+    .stats-row { max-width: 900px; margin: 0 auto 90px; padding: 0 32px; display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); border-radius: 22px; overflow: hidden; }
+    .stat-cell { background: var(--bg-card); padding: 36px 28px; text-align: center; }
+    .stat-n { font-size: 38px; font-weight: 900; letter-spacing: -0.02em; }
+    .stat-l { font-size: 14px; color: var(--text-sub); margin-top: 5px; }
+
+    /* ── SECTION COMMON ── */
+    .sec { padding: 90px 32px; max-width: 1100px; margin: 0 auto; }
+    .sec-tag { display: inline-block; background: var(--accent-dim); color: #93C5FD; border: 1px solid var(--accent-border); border-radius: 20px; padding: 5px 14px; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 14px; }
+    .sec-title { font-size: clamp(28px,4vw,44px); font-weight: 800; line-height: 1.15; letter-spacing: -0.022em; margin-bottom: 14px; }
+    .sec-sub { font-size: 16px; color: var(--text-sub); line-height: 1.7; max-width: 520px; }
+    .text-center { text-align: center; }
+    .text-center .sec-sub { margin: 0 auto; }
+
+    /* ── FEATURES ── */
+    .feat-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-top: 52px; }
+    .feat-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 20px; padding: 28px 24px; transition: all .3s; }
+    .feat-card:hover { border-color: var(--border2); background: var(--bg-card2); transform: translateY(-4px); }
+    .feat-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-bottom: 18px; font-size: 22px; }
+    .feat-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 9px; }
+    .feat-card p { font-size: 13.5px; color: var(--text-sub); line-height: 1.65; }
+
+    /* ── SPLIT SECTION ── */
+    .split { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; }
+    .split-phone-outer { width: 290px; height: 580px; border-radius: 46px; background: linear-gradient(145deg,#1a2535,#0d1623); border: 2px solid rgba(255,255,255,.13); padding: 14px; box-shadow: 0 60px 120px rgba(0,0,0,.65); position: relative; margin: 0 auto; }
+    .split-phone-screen { width: 100%; height: 100%; border-radius: 34px; overflow: hidden; background: #EFF1F4; }
+    .feat-list { list-style: none; display: flex; flex-direction: column; gap: 22px; margin-top: 36px; }
+    .feat-li { display: flex; gap: 16px; align-items: flex-start; }
+    .feat-li-icon { width: 42px; height: 42px; border-radius: 13px; background: var(--accent-dim); border: 1px solid var(--accent-border); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+    .feat-li h4 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+    .feat-li p { font-size: 13.5px; color: var(--text-sub); line-height: 1.6; }
+
+    /* ── STEPS ── */
+    .steps-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 44px; margin-top: 56px; position: relative; }
+    .steps-grid::before { content:''; position:absolute; top:28px; left: calc(50% / 3 + 14px); right: calc(50% / 3 + 14px); height: 1px; background: linear-gradient(90deg, var(--accent) 0%, rgba(30,111,217,.1) 50%, var(--accent) 100%); opacity: .35; pointer-events:none; }
+    .step { text-align: center; }
+    .step-n { width: 56px; height: 56px; border-radius: 18px; background: var(--accent-dim); border: 1px solid var(--accent-border); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; color: #60A5FA; margin: 0 auto 20px; position: relative; z-index: 1; }
+    .step h3 { font-size: 16px; font-weight: 700; margin-bottom: 9px; }
+    .step p { font-size: 13.5px; color: var(--text-sub); line-height: 1.65; }
+
+    /* ── VEHICLES ── */
+    .veh-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 52px; }
+    .veh-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 22px 16px; text-align: center; transition: all .25s; cursor: default; }
+    .veh-card:hover { border-color: var(--accent-border); background: var(--bg-card2); }
+    .veh-em { font-size: 30px; display: block; margin-bottom: 10px; }
+    .veh-lbl { font-size: 12.5px; font-weight: 600; color: var(--text-sub); }
+
+    /* ── SSS ── */
+    .faq-list { max-width: 680px; margin: 52px auto 0; display: flex; flex-direction: column; gap: 10px; }
+    .faq-item { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 22px 24px; cursor: pointer; transition: border-color .2s; }
+    .faq-item:hover { border-color: var(--border2); }
+    .faq-q { font-size: 15px; font-weight: 700; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .faq-a { font-size: 14px; color: var(--text-sub); line-height: 1.65; margin-top: 12px; display: none; }
+    .faq-item.open .faq-a { display: block; }
+    .faq-item.open .faq-arrow { transform: rotate(180deg); }
+    .faq-arrow { transition: transform .2s; flex-shrink: 0; color: var(--text-muted); }
+
+    /* ── CTA ── */
+    .cta-box { background: linear-gradient(135deg, #0E1B30, #091525); border: 1px solid var(--border2); border-radius: 28px; padding: 80px 40px; text-align: center; position: relative; overflow: hidden; }
+    .cta-box::before { content:''; position:absolute; top:-100px; left:50%; transform:translateX(-50%); width:600px; height:400px; background:radial-gradient(circle,rgba(30,111,217,.18) 0%,transparent 70%); pointer-events:none; }
+    .cta-box h2 { font-size: clamp(26px,4vw,42px); font-weight: 800; margin-bottom: 14px; letter-spacing: -0.02em; position:relative; }
+    .cta-box p { font-size: 16px; color: var(--text-sub); margin-bottom: 36px; position:relative; }
+
+    /* ── FOOTER ── */
+    .footer-wrap { border-top: 1px solid var(--border); padding: 36px 32px; max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; }
+    .footer-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+    .footer-logo span { font-size: 15px; font-weight: 800; color: var(--text); }
+    .footer-copy { font-size: 13px; color: var(--text-muted); }
+
+    /* ── ANIMATIONS ── */
+    .reveal { opacity: 0; transform: translateY(28px); transition: opacity .65s ease, transform .65s ease; }
+    .reveal.on { opacity: 1; transform: translateY(0); }
+    .d1 { transition-delay: .1s; } .d2 { transition-delay: .2s; } .d3 { transition-delay: .3s; } .d4 { transition-delay: .4s; } .d5 { transition-delay: .5s; }
+
+    /* ── RESPONSIVE ── */
+    @media(max-width:900px) {
+      .hero-inner { grid-template-columns: 1fr; }
+      .phone-wrap { display: none; }
+      .feat-grid { grid-template-columns: 1fr 1fr; }
+      .split { grid-template-columns: 1fr; }
+      .split-phone-outer { display: none; }
+      .steps-grid { grid-template-columns: 1fr; }
+      .steps-grid::before { display: none; }
+      .veh-grid { grid-template-columns: repeat(2,1fr); }
+      .nav-links { display: none; }
+      .footer-wrap { flex-direction: column; gap: 16px; text-align: center; }
+      .stats-row { grid-template-columns: 1fr; }
+    }
+    @media(max-width:520px) {
+      .feat-grid { grid-template-columns: 1fr; }
+      nav { padding: 0 18px; }
+      .hero { padding: 90px 18px 40px; }
+      .sec { padding: 64px 18px; }
+      .cta-box { padding: 50px 20px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ────────────── NAV ────────────── -->
+<nav>
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 5v3h-7V8z"/>
+        <circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/>
+      </svg>
+    </div>
+    <span>Araç Takip</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#ozellikler">Özellikler</a></li>
+    <li><a href="#nasil">Nasıl Çalışır?</a></li>
+    <li><a href="#araclar">Araç Türleri</a></li>
+    <li><a href="#sss">SSS</a></li>
+  </ul>
+  <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-nav">Uygulamayı Aç →</a>
+</nav>
+
+<!-- ────────────── HERO ────────────── -->
+<div class="hero">
+  <div class="hero-inner">
+
+    <div>
+      <div class="hero-badge">🚗 Tamamen Ücretsiz · Kayıt Gerekmez</div>
+      <h1>Aracının her<br><span>kuruşunu</span><br>takip et</h1>
+      <p>Yakıt dolumları, servis giderleri ve araç masraflarını tek yerden yönet. Verilen cihazında saklı — sunucuya hiçbir şey gönderilmez.</p>
+      <div class="hero-actions">
+        <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-cta">Hemen Başla →</a>
+        <a href="#nasil" class="btn-ghost">Nasıl Çalışır?</a>
+      </div>
+      <div class="hero-trust">
+        <span class="green-dot"></span>
+        8 araç türü destekli · Ücretsiz · Reklamsız
+      </div>
+      <div class="hero-chips">
+        <span class="chip">⛽ Yakıt Takibi</span>
+        <span class="chip">🔧 Servis Geçmişi</span>
+        <span class="chip">📄 Belge Saklama</span>
+        <span class="chip">📊 Finansal Analiz</span>
+      </div>
+    </div>
+
+    <!-- PHONE -->
+    <div class="phone-wrap">
+      <div class="float-card float-card-1">
+        <div class="fc-label">Aylık Yakıt Gideri</div>
+        <div class="fc-value">₺4.280</div>
+        <div class="fc-badge">↓ %12 düşüş</div>
+      </div>
+      <div class="float-card float-card-2">
+        <div class="fc-label">Ortalama Tüketim</div>
+        <div class="fc-value">7,4 L/100</div>
+        <div class="fc-badge">✓ Normal aralıkta</div>
+      </div>
+      <div class="phone-outer">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <!-- Header -->
+          <div class="ph">
+            <div class="ph-row">
+              <div class="ph-car">
+                <div class="ph-icon">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+                </div>
+                <div>
+                  <div class="ph-name">Toyota Corolla ▾</div>
+                  <div class="ph-sub">34 ABC 123 · 48.520 km</div>
+                </div>
+              </div>
+              <div class="ph-edit">
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>
+              </div>
+            </div>
+            <div class="ph-tabs">
+              <div class="ph-tab on">Akış</div>
+              <div class="ph-tab">Finansal</div>
+              <div class="ph-tab">Yakıt</div>
+              <div class="ph-tab">Bilgi</div>
+            </div>
+          </div>
+          <!-- Content -->
+          <div class="ph-body">
+            <div class="ph-alert">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.5"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+              <span>Muayene bitişine 12 gün kaldı</span>
+            </div>
+            <div class="ph-month">HAZİRAN 2026</div>
+            <div class="ph-item">
+              <div class="ph-dot" style="background:#1E6FD9;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M3 22V9a2 2 0 012-2h9a2 2 0 012 2v13"/><path d="M10 9H7M5 17H3"/><path d="M20 8v9a2 2 0 01-2 2h-1"/><path d="M18 4h2a2 2 0 012 2v2"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div class="ph-ti">42,5 L</div>
+                <div class="ph-si">Benzin · 48.520 km · 7,2 L/100</div>
+              </div>
+              <div class="ph-amt">₺1.870</div>
+            </div>
+            <div class="ph-item">
+              <div class="ph-dot" style="background:#16A34A;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 000 1.4l1.6 1.6a1 1 0 001.4 0l3.77-3.77a6 6 0 01-7.94 7.94l-6.91 6.91a2.12 2.12 0 01-3-3l6.91-6.91a6 6 0 017.94-7.94l-3.76 3.76z"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div class="ph-ti">Yağ değişimi</div>
+                <div class="ph-si">Servis · 48.000 km</div>
+              </div>
+              <div class="ph-amt">₺2.450</div>
+            </div>
+            <div class="ph-item">
+              <div class="ph-dot" style="background:#E8920C;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div class="ph-ti">Trafik Sigortası</div>
+                <div class="ph-si">Masraf</div>
+              </div>
+              <div class="ph-amt">₺3.200</div>
+            </div>
+            <div class="ph-month" style="margin-top:3px;">MAYIS 2026</div>
+            <div class="ph-item">
+              <div class="ph-dot" style="background:#1E6FD9;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5"><path d="M3 22V9a2 2 0 012-2h9a2 2 0 012 2v13"/><path d="M10 9H7M5 17H3"/><path d="M20 8v9a2 2 0 01-2 2h-1"/><path d="M18 4h2a2 2 0 012 2v2"/></svg>
+              </div>
+              <div style="flex:1;">
+                <div class="ph-ti">55,0 L</div>
+                <div class="ph-si">Benzin · 47.840 km · 7,6 L/100</div>
+              </div>
+              <div class="ph-amt">₺2.420</div>
+            </div>
+          </div>
+          <div class="ph-fab">+</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ────────────── STATS ────────────── -->
+<div class="stats-row reveal">
+  <div class="stat-cell">
+    <div class="stat-n">8</div>
+    <div class="stat-l">Araç & Taşıt Türü</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-n" style="color:#10B981;">₺0</div>
+    <div class="stat-l">Sonsuza Kadar Ücretsiz</div>
+  </div>
+  <div class="stat-cell">
+    <div class="stat-n">%100</div>
+    <div class="stat-l">Veriler Cihazında Saklı</div>
+  </div>
+</div>
+
+<!-- ────────────── FEATURES ────────────── -->
+<div class="sec" id="ozellikler">
+  <div class="text-center reveal">
+    <div class="sec-tag">ÖZELLİKLER</div>
+    <h2 class="sec-title">İhtiyacın olan her şey<br>tek uygulamada</h2>
+    <p class="sec-sub">Yakıt takibinden finansal analize, belge saklamaktan servis geçmişine — aracınla ilgili her şeyi kayıt altına al.</p>
+  </div>
+  <div class="feat-grid">
+    <div class="feat-card reveal d1">
+      <div class="feat-icon" style="background:rgba(30,111,217,.14);">⛽</div>
+      <h3>Yakıt Takibi</h3>
+      <p>Her dolumu kaydet, L/100km tüketimini otomatik hesapla. İstasyon, şehir, ödeme yöntemi bilgileriyle birlikte.</p>
+    </div>
+    <div class="feat-card reveal d2">
+      <div class="feat-icon" style="background:rgba(232,146,12,.14);">🧾</div>
+      <h3>Masraf Yönetimi</h3>
+      <p>Sigorta, MTV, otopark, köprü geçişi — her türlü araç masrafını kategorize et ve takip et.</p>
+    </div>
+    <div class="feat-card reveal d3">
+      <div class="feat-icon" style="background:rgba(22,163,74,.14);">🔧</div>
+      <h3>Servis Geçmişi</h3>
+      <p>Yağ değişimi, fren, triger, akü — tüm servis kayıtlarını km bilgisiyle birlikte arşivle.</p>
+    </div>
+    <div class="feat-card reveal d1">
+      <div class="feat-icon" style="background:rgba(147,51,234,.14);">📊</div>
+      <h3>Finansal Analiz</h3>
+      <p>Alım-satış kâr/zarar hesabı. USD ve gram altın bazında gerçek satın alma gücü karşılaştırması.</p>
+    </div>
+    <div class="feat-card reveal d2">
+      <div class="feat-icon" style="background:rgba(220,38,38,.14);">🔔</div>
+      <h3>Akıllı Hatırlatmalar</h3>
+      <p>Muayene, egzoz, sigorta, kasko bitiş tarihlerini takip et. 30 gün önceden otomatik uyarı.</p>
+    </div>
+    <div class="feat-card reveal d3">
+      <div class="feat-icon" style="background:rgba(6,182,212,.14);">📄</div>
+      <h3>Belge Saklama</h3>
+      <p>Sigorta poliçesi, kasko belgesi, muayene evrakını PDF veya fotoğraf olarak sakla.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────── SPLIT: FİNANSAL ────────────── -->
+<div class="sec" style="padding-top:20px;">
+  <div class="split">
+    <!-- BIG PHONE: Finansal ekran -->
+    <div class="reveal">
+      <div class="split-phone-outer">
+        <div style="position:absolute;top:20px;left:50%;transform:translateX(-50%);width:72px;height:5px;background:rgba(255,255,255,.15);border-radius:3px;z-index:5;"></div>
+        <div class="split-phone-screen">
+          <div style="background:#13293D;padding:28px 12px 0;">
+            <div style="display:flex;align-items:center;gap:7px;margin-bottom:10px;">
+              <div style="width:30px;height:30px;border-radius:8px;background:rgba(255,255,255,.14);display:flex;align-items:center;justify-content:center;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+              </div>
+              <div>
+                <div style="color:#fff;font-size:11px;font-weight:700;">Toyota Corolla ▾</div>
+                <div style="color:rgba(255,255,255,.5);font-size:8.5px;">34 ABC 123</div>
+              </div>
+            </div>
+            <div style="display:flex;">
+              <div style="flex:1;padding:8px 0;font-size:8.5px;font-weight:600;color:rgba(255,255,255,.45);text-align:center;">Akış</div>
+              <div style="flex:1;padding:8px 0;font-size:8.5px;font-weight:600;color:#fff;text-align:center;border-bottom:2px solid #fff;">Finansal</div>
+              <div style="flex:1;padding:8px 0;font-size:8.5px;font-weight:600;color:rgba(255,255,255,.45);text-align:center;">Yakıt</div>
+              <div style="flex:1;padding:8px 0;font-size:8.5px;font-weight:600;color:rgba(255,255,255,.45);text-align:center;">Bilgi</div>
+            </div>
+          </div>
+          <div style="padding:10px;">
+            <div style="background:#13293D;border-radius:11px;padding:13px;margin-bottom:9px;color:#fff;">
+              <div style="font-size:8px;color:rgba(255,255,255,.6);margin-bottom:3px;">TOPLAM MALİYET</div>
+              <div style="font-size:22px;font-weight:800;">₺87.640</div>
+            </div>
+            <div style="background:#fff;border-radius:11px;padding:11px;margin-bottom:9px;border:1px solid #E2E7EC;">
+              <div style="font-size:9.5px;font-weight:700;color:#1A2733;margin-bottom:8px;">Gider Dağılımı</div>
+              <div style="display:flex;align-items:center;gap:10px;">
+                <div style="width:56px;height:56px;border-radius:50%;background:conic-gradient(#1E6FD9 0% 55%,#E8920C 55% 75%,#16A34A 75% 100%);flex-shrink:0;"></div>
+                <div style="flex:1;">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:8.5px;"><span style="color:#5C6B7A;display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:2px;background:#1E6FD9;display:inline-block;"></span>Yakıt</span><span style="font-weight:700;color:#1A2733;">₺48.200</span></div>
+                  <div style="display:flex;justify-content:space-between;margin-bottom:5px;font-size:8.5px;"><span style="color:#5C6B7A;display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:2px;background:#E8920C;display:inline-block;"></span>Masraf</span><span style="font-weight:700;color:#1A2733;">₺17.800</span></div>
+                  <div style="display:flex;justify-content:space-between;font-size:8.5px;"><span style="color:#5C6B7A;display:flex;align-items:center;gap:4px;"><span style="width:6px;height:6px;border-radius:2px;background:#16A34A;display:inline-block;"></span>Servis</span><span style="font-weight:700;color:#1A2733;">₺21.640</span></div>
+                </div>
+              </div>
+            </div>
+            <div style="background:#fff;border-radius:11px;padding:11px;border:1px solid #E2E7EC;">
+              <div style="font-size:9.5px;font-weight:700;color:#1A2733;margin-bottom:8px;">Alım / Satış</div>
+              <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                <div><div style="font-size:8.5px;color:#5C6B7A;margin-bottom:2px;">Alım</div><div style="font-size:13px;font-weight:700;color:#1A2733;">₺320.000</div></div>
+                <div><div style="font-size:8.5px;color:#5C6B7A;margin-bottom:2px;">Satış</div><div style="font-size:13px;font-weight:700;color:#1A2733;">₺480.000</div></div>
+              </div>
+              <div style="border-top:1px solid #E2E7EC;padding-top:8px;display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-size:8.5px;color:#5C6B7A;">Kâr / Zarar</span>
+                <span style="font-size:16px;font-weight:800;color:#16A34A;">+₺72.360</span>
+              </div>
+              <div style="font-size:8px;color:#94A3B2;margin-top:5px;">USD: $9.356 → $12.468 · Altın: 130g → 155g</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Text -->
+    <div class="reveal">
+      <div class="sec-tag">FİNANSAL ANALİZ</div>
+      <h2 class="sec-title" style="margin-top:14px;">Türkiye için<br>tasarlandı</h2>
+      <p class="sec-sub">Enflasyon ortamında araç sahipliğinin gerçek maliyetini görün. TL bazındaki kâr yanıltıcı olabilir — biz size USD ve altın üzerinden de gösteriyoruz.</p>
+      <ul class="feat-list">
+        <li class="feat-li">
+          <div class="feat-li-icon">💰</div>
+          <div>
+            <h4>TL / USD / Altın bazında analiz</h4>
+            <p>Aracı kaç dolara aldın, kaç dolara sattın? Satın alma gücün korundu mu?</p>
+          </div>
+        </li>
+        <li class="feat-li">
+          <div class="feat-li-icon">📈</div>
+          <div>
+            <h4>Tüm giderler dahil kâr / zarar</h4>
+            <p>Yakıt, servis ve masraflar hesaba katılarak gerçek sahiplik maliyeti hesaplanır.</p>
+          </div>
+        </li>
+        <li class="feat-li">
+          <div class="feat-li-icon">📊</div>
+          <div>
+            <h4>Aylık gider grafiği</h4>
+            <p>Son 6 ayın yakıt, masraf ve servis dağılımını görsel olarak takip et.</p>
+          </div>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────── HOW IT WORKS ────────────── -->
+<div class="sec" id="nasil">
+  <div class="text-center reveal">
+    <div class="sec-tag">NASIL ÇALIŞIR?</div>
+    <h2 class="sec-title">3 adımda başla</h2>
+    <p class="sec-sub">Hesap oluşturmak veya kişisel bilgi vermek zorunda değilsin. Sadece 6 haneli kodun yeterli.</p>
+  </div>
+  <div class="steps-grid">
+    <div class="step reveal d1">
+      <div class="step-n">1</div>
+      <h3>6 Haneli Kod Al</h3>
+      <p>E-posta, şifre, kayıt formu yok. Tek tıkla 6 haneli kodunu oluştur ve kaydet.</p>
+    </div>
+    <div class="step reveal d2">
+      <div class="step-n">2</div>
+      <h3>Aracını Ekle</h3>
+      <p>Marka, model, yakıt tipi, plaka bilgilerini gir. 8 araç türü desteği mevcut.</p>
+    </div>
+    <div class="step reveal d3">
+      <div class="step-n">3</div>
+      <h3>Kayıt Almaya Başla</h3>
+      <p>Her yakıt dolumunu, masrafı, servis kaydını ekle. Grafikler otomatik oluşur.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────── VEHICLE TYPES ────────────── -->
+<div class="sec" id="araclar" style="padding-top:20px;">
+  <div class="text-center reveal">
+    <div class="sec-tag">ARAÇ TÜRLERİ</div>
+    <h2 class="sec-title">Her araca uygun</h2>
+    <p class="sec-sub">Otomobilden motosiklete, tekneden traktöre kadar 8 farklı taşıt türü destekleniyor.</p>
+  </div>
+  <div class="veh-grid">
+    <div class="veh-card reveal d1"><span class="veh-em">🚗</span><div class="veh-lbl">Otomobil</div></div>
+    <div class="veh-card reveal d1"><span class="veh-em">🏍️</span><div class="veh-lbl">Motosiklet</div></div>
+    <div class="veh-card reveal d2"><span class="veh-em">🚐</span><div class="veh-lbl">Otobüs / Minibüs</div></div>
+    <div class="veh-card reveal d2"><span class="veh-em">🚚</span><div class="veh-lbl">Kamyon / İş Mak.</div></div>
+    <div class="veh-card reveal d3"><span class="veh-em">🏕️</span><div class="veh-lbl">Karavan</div></div>
+    <div class="veh-card reveal d3"><span class="veh-em">⛵</span><div class="veh-lbl">Tekne / Yat</div></div>
+    <div class="veh-card reveal d4"><span class="veh-em">🚜</span><div class="veh-lbl">Tarım / İnşaat</div></div>
+    <div class="veh-card reveal d4"><span class="veh-em">🛥️</span><div class="veh-lbl">Jet Ski</div></div>
+  </div>
+</div>
+
+<!-- ────────────── SSS ────────────── -->
+<div class="sec" id="sss">
+  <div class="text-center reveal">
+    <div class="sec-tag">SSS</div>
+    <h2 class="sec-title">Sık Sorulan Sorular</h2>
+  </div>
+  <div class="faq-list">
+    <div class="faq-item reveal" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Uygulama gerçekten ücretsiz mi? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Evet, tamamen ücretsiz. Gizli ücret, abonelik veya premium katman yoktur. Her özellik tüm kullanıcılara açıktır.</div>
+    </div>
+    <div class="faq-item reveal d1" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Verilerim nerede saklanıyor? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Tüm veriler yalnızca kullandığın cihazın tarayıcısında (localStorage) saklanır. Hiçbir sunucuya, üçüncü tarafa veya buluta gönderilmez.</div>
+    </div>
+    <div class="faq-item reveal d2" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Farklı cihazlardan erişebilir miyim? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Şu an için veriler cihaz bazlıdır. 6 haneli kodu başka cihazda girersen boş bir hesap açılır — mevcut veriler aktarılmaz.</div>
+    </div>
+    <div class="faq-item reveal d3" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Birden fazla araç ekleyebilir miyim? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Evet, aynı hesapta istediğin kadar araç ekleyebilir ve aralarında kolayca geçiş yapabilirsin. Her araç için ayrı takip tutulur.</div>
+    </div>
+    <div class="faq-item reveal d4" onclick="this.classList.toggle('open')">
+      <div class="faq-q">LPG'li araç ekleyebilir miyim? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Evet. Benzinli araçlara LPG dönüşümü eklenebilir. Her dolumda benzin veya LPG seçimi yapılır, tüketim ayrı ayrı hesaplanır.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────── CTA ────────────── -->
+<div class="sec">
+  <div class="cta-box reveal">
+    <h2>Aracının kontrolünü<br>geri al</h2>
+    <p>Ücretsiz, kayıtsız, reklamsız. Hemen başla.</p>
+    <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-cta" style="margin:0 auto;display:inline-flex;">
+      Uygulamayı Aç →
+    </a>
+  </div>
+</div>
+
+<!-- ────────────── FOOTER ────────────── -->
+<div style="border-top:1px solid rgba(255,255,255,.07);">
+  <div class="footer-wrap">
+    <a href="#" class="footer-logo">
+      <div class="nav-logo-icon" style="width:30px;height:30px;border-radius:8px;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><rect x="1" y="3" width="15" height="13" rx="1.5"/><path d="M16 8h4l3 5v3h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>
+      </div>
+      <span>Araç Takip</span>
+    </a>
+    <p class="footer-copy">© 2026 Araç Takip. Tüm hakları saklıdır.</p>
+    <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-nav" style="font-size:13px;padding:9px 18px;">Uygulamayı Aç →</a>
+  </div>
+</div>
+
+<script>
+  const obs = new IntersectionObserver(entries => {
+    entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('on'); });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+</script>
+
+</body>
+</html>
