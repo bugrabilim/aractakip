@@ -182,6 +182,8 @@ const globalCss = `
   input:focus, select:focus, textarea:focus { outline: none; }
   ::-webkit-scrollbar { width: 0; }
   input[type="date"]::-webkit-calendar-picker-indicator { opacity: 0.5; }
+  .ct { transition: transform 0.1s ease, box-shadow 0.1s ease; }
+  .ct:active { transform: scale(0.983); box-shadow: 0 0 0 rgba(0,0,0,0) !important; }
 `;
 
 // ═════════════════════════════════════════════════════════════
@@ -558,6 +560,10 @@ export default function App() {
   const uw = uyarılar(aktifArac, sk);
   const dolumlar = veri.doldurmalar[aktifArac.id] || [];
   const masraflar = veri.masraflar[aktifArac.id] || [];
+  const buAy = new Date().toISOString().slice(0, 7);
+  const aylikYakit = dolumlar.filter((d) => d.tarih.startsWith(buAy)).reduce((s, d) => s + d.tutar, 0);
+  const aylikMasraf = masraflar.filter((m) => m.tip === "masraf" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
+  const aylikServis = masraflar.filter((m) => m.tip === "servis" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, maxWidth: 480, margin: "0 auto", position: "relative" }}>
@@ -583,14 +589,30 @@ export default function App() {
         </div>
 
         {/* Üst bar sekmeleri */}
-        <div style={{ display: "flex", padding: "0 8px" }}>
+        <div style={{ display: "flex", padding: "4px 8px 0" }}>
           {[
             { id: "zaman", l: "Akış" }, { id: "finansal", l: "Finansal" },
             { id: "yakit", l: "Yakıt" }, { id: "bilgi", l: "Bilgi" },
           ].map((t) => (
-            <button key={t.id} onClick={() => setEkran(t.id)} style={{ flex: 1, padding: "12px 0", fontSize: 13, fontWeight: 600, color: ekran === t.id ? "#fff" : "rgba(255,255,255,0.5)", borderBottom: `2.5px solid ${ekran === t.id ? "#fff" : "transparent"}` }}>{t.l}</button>
+            <button key={t.id} onClick={() => setEkran(t.id)} style={{ flex: 1, padding: "9px 4px", margin: "0 2px", fontSize: 13, fontWeight: 600, color: ekran === t.id ? "#fff" : "rgba(255,255,255,0.5)", background: ekran === t.id ? "rgba(255,255,255,0.15)" : "transparent", borderRadius: "8px 8px 0 0", transition: "all 0.18s" }}>{t.l}</button>
           ))}
         </div>
+
+        {/* Bu ay özet strip */}
+        {(aylikYakit + aylikMasraf + aylikServis) > 0 && (
+          <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px 14px" }}>
+            {[
+              { l: "Yakıt", v: fmtTRY(aylikYakit) },
+              { l: "Masraf", v: fmtTRY(aylikMasraf) },
+              { l: "Servis", v: fmtTRY(aylikServis) },
+            ].map((s, i) => (
+              <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{s.v}</div>
+                <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{s.l}</div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ── İÇERİK ── */}
@@ -690,13 +712,16 @@ function ZamanCizelgesi({ dolumlar, masraflar, onDolumDuzenle, onDolumSil, onMas
     <div>
       {Object.entries(gruplar).map(([ay, list]) => (
         <div key={ay} style={{ marginBottom: 8 }}>
-          <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, textTransform: "capitalize", padding: "6px 4px 10px" }}>
-            {new Date(ay + "-01").toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 4px 10px" }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, textTransform: "capitalize" }}>
+              {new Date(ay + "-01").toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}
+            </div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: T.textSub }}>{fmtTRY(list.reduce((s, o) => s + o.tutar, 0))}</div>
           </div>
           {list.map((o) => {
             const st = olayStili(o._tip);
             return (
-              <div key={o.id} style={{ background: T.card, borderRadius: 14, padding: "13px 14px", marginBottom: 8, display: "flex", gap: 13, alignItems: "center", border: `1px solid ${T.border}`, borderLeft: `4px solid ${st.renk}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+              <div key={o.id} className="ct" style={{ background: T.card, borderRadius: 14, padding: "13px 14px", marginBottom: 8, display: "flex", gap: 13, alignItems: "center", border: `1px solid ${T.border}`, borderLeft: `4px solid ${st.renk}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
                 <div style={{ width: 42, height: 42, borderRadius: 12, background: st.renk, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{st.ikon}</div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
@@ -877,8 +902,26 @@ function YakitEkran({ dolumlar }) {
     return <BosDurum ikon={<Fuel size={32} color={T.textMuted} />} başlık="Dolum yok" açıklama="Yakıt dolumu ekledikçe tüketim analizin burada oluşur." />;
   }
 
+  const sonDolum = [...dolumlar].sort((a, b) => b.tarih.localeCompare(a.tarih))[0] || null;
+
   return (
     <div>
+      {sonDolum && (
+        <div className="ct" style={{ background: T.primaryDim, border: `1px solid rgba(30,111,217,0.2)`, borderRadius: 14, padding: "14px 16px", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, letterSpacing: "0.05em" }}>SON DOLUM</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: T.text, marginTop: 3 }}>
+              {fmtKisaTarih(sonDolum.tarih)} · {fmtSayi(sonDolum.litre, 1)} L · {fmtSayi(sonDolum.km, 0)} km
+            </div>
+          </div>
+          <div style={{ textAlign: "right" }}>
+            <div style={{ fontSize: 10, fontWeight: 700, color: T.textMuted, letterSpacing: "0.05em" }}>BİRİM FİYAT</div>
+            <div style={{ fontSize: 20, fontWeight: 800, color: T.primary, marginTop: 3 }}>
+              {fmtSayi(sonDolum.tutar / sonDolum.litre, 2)} <span style={{ fontSize: 12, fontWeight: 600 }}>₺/L</span>
+            </div>
+          </div>
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 14 }}>
         <Metrik etiket="ORT. TÜKETİM" değer={h.ortTuketim ? `${fmtSayi(h.ortTuketim)}` : "—"} alt="L/100km" renk={T.yakit} />
         <Metrik etiket="ORT. FİYAT" değer={h.ortFiyat ? fmtSayi(h.ortFiyat, 2) : "—"} alt="₺/litre" />
