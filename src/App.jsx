@@ -81,6 +81,36 @@ function sıkıstir(e, cb) {
   }; i.src = r.result; };
   r.readAsDataURL(f);
 }
+async function fisiTani(b64, apiKey) {
+  const base64 = b64.split(",")[1];
+  const mediaType = b64.split(";")[0].split(":")[1] || "image/jpeg";
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+      "content-type": "application/json",
+      "anthropic-dangerous-direct-browser-access": "true",
+    },
+    body: JSON.stringify({
+      model: "claude-haiku-4-5-20251001",
+      max_tokens: 256,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+          { type: "text", text: `Bu bir yakıt istasyonu fişi veya km göstergesi fotoğrafı. Görüntüden şu bilgileri JSON olarak çıkar:
+{"tutar": <toplam ₺ sayı veya null>, "litre": <litre sayı veya null>, "tarih": "YYYY-MM-DD veya null", "istasyon": "<istasyon adı veya null>", "sehir": "<şehir veya null>", "km": <km sayı veya null>}
+Yalnızca JSON döndür, başka açıklama ekleme.` },
+        ],
+      }],
+    }),
+  });
+  if (!res.ok) throw new Error(res.status);
+  const data = await res.json();
+  const text = data.content[0].text.trim().replace(/^```json\n?/, "").replace(/\n?```$/, "");
+  return JSON.parse(text);
+}
 function belgeSec(e, cb) {
   const f = e.target.files?.[0]; if (!f) return;
   const pdf = f.type === "application/pdf" || f.name.toLowerCase().endsWith(".pdf");
@@ -246,6 +276,7 @@ function Chip({ aktif, renk, onClick, children }) {
   );
 }
 function FotoAlani({ etiket, gorsel, onSec, onKaldir }) {
+  const labelSt = { display: "inline-flex", alignItems: "center", gap: 6, padding: "9px 14px", borderRadius: 10, border: `1.5px dashed ${T.border}`, background: T.card, color: T.textSub, fontSize: 13, cursor: "pointer" };
   return (
     <Field label={etiket}>
       {gorsel ? (
@@ -254,9 +285,16 @@ function FotoAlani({ etiket, gorsel, onSec, onKaldir }) {
           <button onClick={onKaldir} style={{ position: "absolute", top: -8, right: -8, width: 22, height: 22, borderRadius: 11, background: T.danger, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={12} /></button>
         </div>
       ) : (
-        <label style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 16px", borderRadius: 10, border: `1.5px dashed ${T.border}`, background: T.card, color: T.textSub, fontSize: 14, cursor: "pointer" }}>
-          <Camera size={16} /> Fotoğraf ekle<input type="file" accept="image/*" capture="environment" onChange={onSec} style={{ display: "none" }} />
-        </label>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <label style={labelSt}>
+            <Camera size={15} /> Çek
+            <input type="file" accept="image/*" capture="environment" onChange={onSec} style={{ display: "none" }} />
+          </label>
+          <label style={labelSt}>
+            <ImageIcon size={15} /> Galeriden
+            <input type="file" accept="image/*" onChange={onSec} style={{ display: "none" }} />
+          </label>
+        </div>
       )}
     </Field>
   );
@@ -303,10 +341,11 @@ function ProfilModal({ kod, veri, onKapat, onGuncelle, onCikis }) {
   const [ad, setAd] = useState(veri.ad || "");
   const [eposta, setEposta] = useState(veri.eposta || "");
   const [telefon, setTelefon] = useState(veri.telefon || "");
+  const [apiKey, setApiKey] = useState(veri.ajanApiKey || "");
   const [kopya, setKopya] = useState(false);
 
   function kaydet() {
-    onGuncelle({ ...veri, ad: ad.trim() || null, eposta: eposta.trim() || null, telefon: telefon.trim() || null });
+    onGuncelle({ ...veri, ad: ad.trim() || null, eposta: eposta.trim() || null, telefon: telefon.trim() || null, ajanApiKey: apiKey.trim() || null });
     onKapat();
   }
 
@@ -333,6 +372,11 @@ function ProfilModal({ kod, veri, onKapat, onGuncelle, onCikis }) {
       <Input label="İsim (opsiyonel)" value={ad} onChange={setAd} placeholder="Adın Soyadın" />
       <Input label="E-posta (opsiyonel)" value={eposta} onChange={setEposta} placeholder="ornek@email.com" type="email" />
       <Input label="Telefon (opsiyonel)" value={telefon} onChange={setTelefon} placeholder="+90 555 000 00 00" />
+      <div style={{ height: 1, background: T.border, margin: "4px 0 10px" }} />
+      <Input label="Anthropic API Key — AI fiş tanıma için" value={apiKey} onChange={setApiKey} placeholder="sk-ant-api03-..." />
+      <div style={{ fontSize: 12, color: T.textMuted, marginTop: -10, marginBottom: 4, lineHeight: 1.5 }}>
+        Yakıt fişi fotoğrafından tarih, litre, tutar, istasyon otomatik doldurulur. Ücretsiz Claude Haiku kullanır.
+      </div>
 
       <div style={{ height: 1, background: T.border, margin: "8px 0 14px" }} />
       <button onClick={() => { onKapat(); onCikis(); }}
@@ -860,7 +904,7 @@ export default function App() {
       {modal === "aracSecici" && <AracSecici araclar={veri.araclar} aktifId={aktifArac.id} doldurmalar={veri.doldurmalar}
         onSec={(id) => { setAktifAracId(id); setModal(null); }} onYeni={() => { setEditArac(null); setModal("arac"); }} onKapat={() => setModal(null)} />}
       {modal === "arac" && <AracFormModal mevcut={editArac} onKaydet={aracKaydet} onKapat={() => { setModal(null); setEditArac(null); }} onSil={editArac ? () => aracSil(editArac.id) : null} />}
-      {modal === "dolum" && <DolumFormModal mevcut={editKayit} yakitListesi={aktifArac.yakitTipleri || [aktifArac.anaYakitTipi || "benzin"]} onKaydet={dolumKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
+      {modal === "dolum" && <DolumFormModal mevcut={editKayit} yakitListesi={aktifArac.yakitTipleri || [aktifArac.anaYakitTipi || "benzin"]} onKaydet={dolumKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} apiKey={veri.ajanApiKey} />}
       {modal === "masraf" && <MasrafFormModal mevcut={editKayit} tip="masraf" onKaydet={masrafKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
       {modal === "servis" && <MasrafFormModal mevcut={editKayit} tip="servis" onKaydet={masrafKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
       {modal === "profil" && <ProfilModal kod={kod} veri={veri} onKapat={() => setModal(null)} onGuncelle={profilGuncelle} onCikis={cikis} />}
@@ -1515,7 +1559,7 @@ function AracFormModal({ mevcut, onKaydet, onKapat, onSil }) {
 // ═════════════════════════════════════════════════════════════
 // DOLUM FORM MODALI
 // ═════════════════════════════════════════════════════════════
-function DolumFormModal({ mevcut, yakitListesi, onKaydet, onKapat }) {
+function DolumFormModal({ mevcut, yakitListesi, onKaydet, onKapat, apiKey }) {
   const bugun = bugunStr();
   const [form, setForm] = useState(mevcut ? {
     tarih: mevcut.tarih, km: String(mevcut.km), yakitTipi: mevcut.yakitTipi, litre: String(mevcut.litre), tutar: String(mevcut.tutar),
@@ -1524,9 +1568,40 @@ function DolumFormModal({ mevcut, yakitListesi, onKaydet, onKapat }) {
     kmGorseli: mevcut.kmGorseli || null, fisGorseli: mevcut.fisGorseli || null,
   } : { tarih: bugun, km: "", yakitTipi: yakitListesi[0] || "benzin", litre: "", tutar: "", istasyon: "", sehir: "", odemeYontemi: "", depoDoluluk: "", surusTipi: "", not: "", kmGorseli: null, fisGorseli: null });
   const [hata, setHata] = useState("");
+  const [taniyor, setTaniyor] = useState(false);
   const set = (k, v) => setForm((p) => ({ ...p, [k]: v }));
   const lt = Number(String(form.litre).replace(",", ".")), tt = Number(String(form.tutar).replace(",", "."));
   const birim = lt && tt ? tt / lt : null;
+
+  async function fisSec(e) {
+    sıkıstir(e, async (v) => {
+      set("fisGorseli", v);
+      if (!apiKey) return;
+      setTaniyor(true);
+      try {
+        const s = await fisiTani(v, apiKey);
+        if (s.tutar != null) set("tutar", String(s.tutar));
+        if (s.litre != null) set("litre", String(s.litre));
+        if (s.tarih) set("tarih", s.tarih);
+        if (s.istasyon) set("istasyon", s.istasyon);
+        if (s.sehir) set("sehir", s.sehir);
+      } catch (_) {}
+      finally { setTaniyor(false); }
+    });
+  }
+
+  async function kmSec(e) {
+    sıkıstir(e, async (v) => {
+      set("kmGorseli", v);
+      if (!apiKey) return;
+      setTaniyor(true);
+      try {
+        const s = await fisiTani(v, apiKey);
+        if (s.km != null) set("km", String(s.km));
+      } catch (_) {}
+      finally { setTaniyor(false); }
+    });
+  }
 
   function kaydet() {
     if (!form.tarih || !form.km || !form.litre || !form.tutar || !form.yakitTipi) { setHata("Tarih, km, litre, tutar zorunlu."); return; }
@@ -1536,6 +1611,20 @@ function DolumFormModal({ mevcut, yakitListesi, onKaydet, onKapat }) {
   return (
     <Modal başlık={mevcut ? "Dolumu Düzenle" : "Dolum Ekle"} onKapat={onKapat} yükseklik="90vh"
       footer={<><div style={{ padding: hata ? "0 20px 6px" : 0, fontSize: 13, color: T.danger, textAlign: "center" }}>{hata}</div><ModalFooter onKapat={onKapat} onKaydet={kaydet} /></>}>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 12 }}>
+        <FotoAlani etiket="Km göstergesi" gorsel={form.kmGorseli} onSec={kmSec} onKaldir={() => set("kmGorseli", null)} />
+        <FotoAlani etiket={`Yakıt fişi${apiKey ? " ✦ AI" : ""}`} gorsel={form.fisGorseli} onSec={fisSec} onKaldir={() => set("fisGorseli", null)} />
+      </div>
+      {taniyor && (
+        <div style={{ padding: "10px 14px", background: T.primaryDim, borderRadius: 10, marginBottom: 12, fontSize: 13, color: T.primary, fontWeight: 600, textAlign: "center" }}>
+          Fiş analiz ediliyor...
+        </div>
+      )}
+      {!apiKey && (
+        <div style={{ padding: "8px 12px", background: T.warningDim, borderRadius: 10, marginBottom: 12, fontSize: 12, color: T.warning }}>
+          AI fiş tanıma için Profil &gt; API Key girin.
+        </div>
+      )}
       {yakitListesi.length > 1 && (
         <Field label="Yakıt tipi">
           <div style={{ display: "flex", gap: 8 }}>{yakitListesi.map((y) => <Chip key={y} aktif={form.yakitTipi === y} renk={yt(y)} onClick={() => set("yakitTipi", y)}>{yl(y)}</Chip>)}</div>
@@ -1556,10 +1645,6 @@ function DolumFormModal({ mevcut, yakitListesi, onKaydet, onKapat }) {
       </div>
       <Select label="Sürüş tipi" value={form.surusTipi} onChange={(v) => set("surusTipi", v)} options={SURUS} />
       <Input label="Not" value={form.not} onChange={(v) => set("not", v)} placeholder="Klimalı uzun yol..." />
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
-        <FotoAlani etiket="Km göstergesi" gorsel={form.kmGorseli} onSec={(e) => sıkıstir(e, (v) => set("kmGorseli", v))} onKaldir={() => set("kmGorseli", null)} />
-        <FotoAlani etiket="Yakıt fişi" gorsel={form.fisGorseli} onSec={(e) => sıkıstir(e, (v) => set("fisGorseli", v))} onKaldir={() => set("fisGorseli", null)} />
-      </div>
     </Modal>
   );
 }
