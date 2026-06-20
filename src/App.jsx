@@ -872,7 +872,8 @@ export default function App() {
 // EKRAN: ZAMAN ÇİZELGESİ (Drivvo ana ekranı — aktivite akışı)
 // ═════════════════════════════════════════════════════════════
 function ZamanCizelgesi({ dolumlar, masraflar, onDolumDuzenle, onDolumSil, onMasrafDuzenle, onMasrafSil }) {
-  // Tüm olayları tek listede birleştir, tarihe göre sırala
+  const [tumGecmis, setTumGecmis] = useState(false);
+
   const olaylar = useMemo(() => {
     const liste = [];
     [...dolumlar].sort((a, b) => a.tarih.localeCompare(b.tarih)).forEach((d, i, arr) => {
@@ -887,62 +888,115 @@ function ZamanCizelgesi({ dolumlar, masraflar, onDolumDuzenle, onDolumSil, onMas
     return liste.sort((a, b) => b.tarih.localeCompare(a.tarih));
   }, [dolumlar, masraflar]);
 
+  const aylikData = useMemo(() => {
+    const result = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(1);
+      d.setMonth(d.getMonth() - i);
+      const ay = d.toISOString().slice(0, 7);
+      const label = d.toLocaleDateString("tr-TR", { month: "short" });
+      const toplam = [...dolumlar, ...masraflar].filter((x) => x.tarih.startsWith(ay)).reduce((s, x) => s + x.tutar, 0);
+      result.push({ ay, label, toplam });
+    }
+    return result;
+  }, [dolumlar, masraflar]);
+
+  const buAy = new Date().toISOString().slice(0, 7);
+  const buAyYakit = dolumlar.filter((d) => d.tarih.startsWith(buAy)).reduce((s, d) => s + d.tutar, 0);
+  const buAyMasraf = masraflar.filter((m) => m.tip === "masraf" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
+  const buAyServis = masraflar.filter((m) => m.tip === "servis" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
+  const buAyToplam = buAyYakit + buAyMasraf + buAyServis;
+
   if (!olaylar.length) {
     return <BosDurum ikon={<List size={32} color={T.textMuted} />} başlık="Henüz kayıt yok" açıklama="Sağ alttaki + butonuyla dolum, masraf veya servis ekle." />;
   }
 
-  // Ay bazında grupla
-  const gruplar = {};
-  olaylar.forEach((o) => { const ay = o.tarih.slice(0, 7); (gruplar[ay] = gruplar[ay] || []).push(o); });
+  const goruntulenecek = tumGecmis ? olaylar : olaylar.slice(0, 5);
 
   return (
     <div>
-      {Object.entries(gruplar).map(([ay, list]) => (
-        <div key={ay} style={{ marginBottom: 8 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 4px 10px" }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, textTransform: "capitalize" }}>
-              {new Date(ay + "-01").toLocaleDateString("tr-TR", { month: "long", year: "numeric" })}
-            </div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: T.textSub }}>{fmtTRY(list.reduce((s, o) => s + o.tutar, 0))}</div>
-          </div>
-          {list.map((o) => {
-            const st = olayStili(o._tip);
-            return (
-              <div key={o.id} className="ct" style={{ background: T.card, borderRadius: 14, padding: "13px 14px", marginBottom: 8, display: "flex", gap: 13, alignItems: "center", border: `1px solid ${T.border}`, borderLeft: `4px solid ${st.renk}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
-                <div style={{ width: 42, height: 42, borderRadius: 12, background: st.renk, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{st.ikon}</div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>
-                      {o._tip === "dolum" ? `${fmtSayi(o.litre, 1)} L` : (o.kategori || o.aciklama || st.etiket)}
-                    </span>
-                    <span style={{ fontSize: 15, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>{fmtTRY(o.tutar)}</span>
-                  </div>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 3 }}>
-                    <span style={{ fontSize: 12, color: T.textSub }}>
-                      {o._tip === "dolum"
-                        ? `${yl(o.yakitTipi)} · ${fmtSayi(o.km, 0)} km${o.tuketim ? ` · ${fmtSayi(o.tuketim)} L/100` : ""}`
-                        : `${o.aciklama || ""}${o.km ? ` · ${fmtSayi(o.km, 0)} km` : ""}`}
-                    </span>
-                    <span style={{ fontSize: 12, color: T.textMuted }}>{fmtKisaTarih(o.tarih)}</span>
-                  </div>
-                  {(o.istasyon || o.not) && <div style={{ fontSize: 12, color: T.textMuted, marginTop: 3 }}>{[o.istasyon, o.not].filter(Boolean).join(" · ")}</div>}
-                  {(o.kmGorseli || o.fisGorseli || o.faturaGorseli) && (
-                    <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-                      {[o.kmGorseli, o.fisGorseli, o.faturaGorseli].filter(Boolean).map((g, i) => (
-                        <img key={i} src={g} style={{ width: 42, height: 42, borderRadius: 8, objectFit: "cover" }} />
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <button onClick={() => o._tip === "dolum" ? onDolumDuzenle(o) : onMasrafDuzenle(o)} style={{ color: T.textMuted, display: "flex" }}><Pencil size={15} /></button>
-                  <button onClick={() => o._tip === "dolum" ? onDolumSil(o.id) : onMasrafSil(o.id)} style={{ color: "#D9A0A0", display: "flex" }}><Trash2 size={15} /></button>
-                </div>
-              </div>
-            );
-          })}
+      <div style={{ background: T.navy, borderRadius: 18, padding: "22px 20px 14px", marginBottom: 20 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.4)", letterSpacing: "0.1em", marginBottom: 6 }}>BU AY TOPLAM</div>
+        <div style={{ fontSize: 38, fontWeight: 800, color: "#fff", lineHeight: 1, marginBottom: 14 }}>
+          {buAyToplam > 0 ? fmtTRY(buAyToplam) : "—"}
         </div>
-      ))}
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+          {[
+            { l: "Yakıt", v: buAyYakit, c: "#60A5FA" },
+            { l: "Masraf", v: buAyMasraf, c: "#FBB040" },
+            { l: "Servis", v: buAyServis, c: "#4ADE80" },
+          ].filter((x) => x.v > 0).map((x) => (
+            <div key={x.l} style={{ background: "rgba(255,255,255,0.1)", borderRadius: 8, padding: "5px 11px", display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ width: 7, height: 7, borderRadius: 4, background: x.c, flexShrink: 0 }} />
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", fontWeight: 600 }}>{x.l}</span>
+              <span style={{ fontSize: 13, color: "#fff", fontWeight: 700 }}>{fmtTRY(x.v)}</span>
+            </div>
+          ))}
+        </div>
+        <ResponsiveContainer width="100%" height={64}>
+          <BarChart data={aylikData} margin={{ top: 0, right: 0, left: 0, bottom: 0 }} barCategoryGap="28%">
+            <Bar dataKey="toplam" radius={[3, 3, 0, 0]}>
+              {aylikData.map((entry, i) => (
+                <Cell key={i} fill={entry.ay === buAy ? "#60A5FA" : "rgba(255,255,255,0.18)"} />
+              ))}
+            </Bar>
+            <XAxis dataKey="label" tick={{ fill: "rgba(255,255,255,0.35)", fontSize: 9 }} axisLine={false} tickLine={false} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.textMuted, letterSpacing: "0.07em" }}>SON AKTİVİTE</div>
+        {!tumGecmis && olaylar.length > 5 && (
+          <button onClick={() => setTumGecmis(true)} style={{ fontSize: 13, color: T.primary, fontWeight: 600 }}>
+            Tümünü gör ({olaylar.length})
+          </button>
+        )}
+      </div>
+
+      {goruntulenecek.map((o) => {
+        const st = olayStili(o._tip);
+        return (
+          <div key={o.id} className="ct" style={{ background: T.card, borderRadius: 14, padding: "13px 14px", marginBottom: 8, display: "flex", gap: 13, alignItems: "center", border: `1px solid ${T.border}`, borderLeft: `4px solid ${st.renk}`, boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+            <div style={{ width: 42, height: 42, borderRadius: 12, background: st.renk, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{st.ikon}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: T.text }}>
+                  {o._tip === "dolum" ? `${fmtSayi(o.litre, 1)} L` : (o.kategori || o.aciklama || st.etiket)}
+                </span>
+                <span style={{ fontSize: 15, fontWeight: 700, color: T.text, whiteSpace: "nowrap" }}>{fmtTRY(o.tutar)}</span>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 3 }}>
+                <span style={{ fontSize: 12, color: T.textSub }}>
+                  {o._tip === "dolum"
+                    ? `${yl(o.yakitTipi)} · ${fmtSayi(o.km, 0)} km${o.tuketim ? ` · ${fmtSayi(o.tuketim)} L/100` : ""}`
+                    : `${o.aciklama || ""}${o.km ? ` · ${fmtSayi(o.km, 0)} km` : ""}`}
+                </span>
+                <span style={{ fontSize: 12, color: T.textMuted }}>{fmtKisaTarih(o.tarih)}</span>
+              </div>
+              {(o.istasyon || o.not) && <div style={{ fontSize: 12, color: T.textMuted, marginTop: 3 }}>{[o.istasyon, o.not].filter(Boolean).join(" · ")}</div>}
+              {(o.kmGorseli || o.fisGorseli || o.faturaGorseli) && (
+                <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                  {[o.kmGorseli, o.fisGorseli, o.faturaGorseli].filter(Boolean).map((g, i) => (
+                    <img key={i} src={g} style={{ width: 42, height: 42, borderRadius: 8, objectFit: "cover" }} />
+                  ))}
+                </div>
+              )}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <button onClick={() => o._tip === "dolum" ? onDolumDuzenle(o) : onMasrafDuzenle(o)} style={{ color: T.textMuted, display: "flex" }}><Pencil size={15} /></button>
+              <button onClick={() => o._tip === "dolum" ? onDolumSil(o.id) : onMasrafSil(o.id)} style={{ color: "#D9A0A0", display: "flex" }}><Trash2 size={15} /></button>
+            </div>
+          </div>
+        );
+      })}
+
+      {tumGecmis && (
+        <button onClick={() => setTumGecmis(false)} style={{ width: "100%", padding: 12, textAlign: "center", fontSize: 13, color: T.textSub, fontWeight: 600, background: T.card, borderRadius: 12, border: `1px solid ${T.border}`, marginTop: 4 }}>
+          Gizle
+        </button>
+      )}
     </div>
   );
 }
