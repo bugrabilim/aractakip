@@ -176,6 +176,64 @@
     .footer-logo span { font-size: 15px; font-weight: 800; color: var(--text); }
     .footer-copy { font-size: 13px; color: var(--text-muted); }
 
+    /* ── PRODUCT SELECTOR MODAL ── */
+    #urun-modal,#kurumsal-modal { position:fixed;inset:0;z-index:1000;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.75);backdrop-filter:blur(6px); }
+    #urun-modal.open,#kurumsal-modal.open { display:flex; }
+    #kurumsal-modal { z-index:1001; }
+    .urun-panel { background:#0C1525;border:1px solid rgba(255,255,255,.13);border-radius:28px;padding:40px;max-width:540px;width:calc(100% - 40px);position:relative;animation:slideUp .3s ease; }
+    @keyframes slideUp { from{transform:translateY(24px);opacity:0} to{transform:translateY(0);opacity:1} }
+    .urun-close { position:absolute;top:16px;right:16px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.08);border:none;cursor:pointer;color:var(--text-sub);font-size:15px;display:flex;align-items:center;justify-content:center; }
+    .urun-close:hover { background:rgba(255,255,255,.15); }
+    .urun-cards { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:24px; }
+    @media(max-width:480px) { .urun-cards { grid-template-columns:1fr; } }
+    .urun-card { border-radius:18px;border:1.5px solid rgba(255,255,255,.1);padding:22px 18px;cursor:pointer;transition:all .2s;background:rgba(255,255,255,.03);display:flex;flex-direction:column; }
+    .urun-card:hover { border-color:rgba(255,255,255,.28);background:rgba(255,255,255,.07);transform:translateY(-3px); }
+    .urun-badge { font-size:10px;font-weight:800;letter-spacing:.08em;padding:3px 9px;border-radius:6px;display:inline-block;margin-bottom:12px; }
+    .urun-card h3 { font-size:17px;font-weight:800;margin-bottom:4px; }
+    .urun-who { font-size:12px;color:var(--text-sub);margin-bottom:14px; }
+    .urun-feats { list-style:none;display:flex;flex-direction:column;gap:5px;flex:1; }
+    .urun-feats li { font-size:12px;color:var(--text-sub);display:flex;gap:7px; }
+    .urun-cta { margin-top:16px;padding:11px 0;border-radius:11px;font-size:13px;font-weight:700;width:100%;border:none;cursor:pointer;transition:all .2s; }
+    .uc-b { border-color:var(--accent-border); }
+    .uc-b .urun-badge { background:var(--accent-dim);color:#93C5FD; }
+    .uc-b .urun-feats li::before { content:'✓';color:#60A5FA;font-weight:700;flex-shrink:0; }
+    .uc-b .urun-cta { background:var(--accent);color:#fff; }
+    .uc-k { border-color:rgba(16,185,129,.22); }
+    .uc-k .urun-badge { background:rgba(16,185,129,.14);color:#10B981; }
+    .uc-k .urun-feats li::before { content:'✓';color:#10B981;font-weight:700;flex-shrink:0; }
+    .uc-k .urun-cta { background:rgba(16,185,129,.16);color:#10B981;border:1.5px solid rgba(16,185,129,.28); }
+    .uc-k .urun-cta:hover { background:rgba(16,185,129,.26); }
+
+    /* ── KURUMSAL SECTION ── */
+    .kurumsal-wrap { border:1px solid rgba(16,185,129,.18);border-radius:28px;background:linear-gradient(135deg,rgba(16,185,129,.04) 0%,transparent 65%);padding:64px 52px;position:relative;overflow:hidden; }
+    .kurumsal-wrap::before { content:'';position:absolute;top:-80px;right:-80px;width:380px;height:380px;background:radial-gradient(circle,rgba(16,185,129,.09) 0%,transparent 70%);pointer-events:none; }
+    @media(max-width:700px) { .kurumsal-wrap { padding:40px 24px; } }
+    .kurumsal-grid { display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:32px; }
+    @media(max-width:640px) { .kurumsal-grid { grid-template-columns:1fr; } }
+    .kf { background:rgba(16,185,129,.05);border:1px solid rgba(16,185,129,.14);border-radius:14px;padding:16px 18px; }
+    .kf-em { font-size:20px;margin-bottom:8px; }
+    .kf-t { font-size:13px;font-weight:700;margin-bottom:3px; }
+    .kf-d { font-size:12px;color:var(--text-sub);line-height:1.5; }
+    .btn-green { background:rgba(16,185,129,.18);color:#10B981;border:1.5px solid rgba(16,185,129,.3);border-radius:13px;padding:14px 26px;font-size:14px;font-weight:700;cursor:pointer;transition:all .2s;display:inline-flex;align-items:center;gap:8px; }
+    .btn-green:hover { background:rgba(16,185,129,.28);transform:translateY(-1px); }
+
+    /* ── PRICING ── */
+    .pricing-grid { display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:48px; }
+    @media(max-width:620px) { .pricing-grid { grid-template-columns:1fr; } }
+    .price-card { border-radius:22px;padding:32px;border:1px solid var(--border);background:var(--bg-card); }
+    .price-card.featured { border-color:rgba(16,185,129,.3);background:linear-gradient(160deg,rgba(16,185,129,.05) 0%,var(--bg-card) 100%);position:relative; }
+    .price-best { position:absolute;top:-14px;left:50%;transform:translateX(-50%);background:linear-gradient(90deg,#10B981,#059669);border-radius:20px;padding:5px 16px;font-size:11px;font-weight:700;color:#fff;white-space:nowrap; }
+    .price-name { font-size:15px;font-weight:800;margin-bottom:4px; }
+    .price-who { font-size:12px;color:var(--text-sub);margin-bottom:20px; }
+    .price-amount { font-size:40px;font-weight:900;letter-spacing:-0.02em;margin-bottom:4px; }
+    .price-period { font-size:13px;color:var(--text-sub);margin-bottom:24px; }
+    .price-feats { list-style:none;display:flex;flex-direction:column;gap:9px;margin-bottom:28px; }
+    .price-feats li { font-size:13px;color:var(--text-sub);display:flex;gap:10px;align-items:flex-start; }
+    .price-feats li span.ck { color:#10B981;font-weight:700;flex-shrink:0; }
+    .price-btn { width:100%;padding:14px;border-radius:13px;font-size:14px;font-weight:700;cursor:pointer;border:none;transition:all .2s; }
+    .pbf { background:var(--accent);color:#fff; } .pbf:hover { opacity:.9; }
+    .pbp { background:rgba(16,185,129,.16);color:#10B981;border:1.5px solid rgba(16,185,129,.28); } .pbp:hover { background:rgba(16,185,129,.26); }
+
     /* ── ANIMATIONS ── */
     .reveal { opacity: 0; transform: translateY(28px); transition: opacity .65s ease, transform .65s ease; }
     .reveal.on { opacity: 1; transform: translateY(0); }
@@ -219,11 +277,11 @@
   </a>
   <ul class="nav-links">
     <li><a href="#ozellikler">Özellikler</a></li>
-    <li><a href="#nasil">Nasıl Çalışır?</a></li>
-    <li><a href="#araclar">Araç Türleri</a></li>
+    <li><a href="#kurumsal">Kurumsal</a></li>
+    <li><a href="#fiyat">Fiyatlandırma</a></li>
     <li><a href="#sss">SSS</a></li>
   </ul>
-  <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-nav">Uygulamayı Aç →</a>
+  <button onclick="urunSeciciAc()" class="btn-nav">Uygulamayı Aç →</button>
 </nav>
 
 <!-- ────────────── HERO ────────────── -->
@@ -231,12 +289,12 @@
   <div class="hero-inner">
 
     <div>
-      <div class="hero-badge">🚗 Tamamen Ücretsiz · Kayıt Gerekmez</div>
+      <div class="hero-badge">🚗 Bireysel Ücretsiz · Kurumsal Yakında</div>
       <h1>Aracının her<br><span>kuruşunu</span><br>takip et</h1>
-      <p>Yakıt dolumları, servis giderleri ve araç masraflarını tek yerden yönet. Verilen cihazında saklı — sunucuya hiçbir şey gönderilmez.</p>
+      <p>Kişisel araç takibinden kurumsal filo yönetimine. Yakıt, servis, masrafları tek yerden yönet.</p>
       <div class="hero-actions">
-        <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-cta">Hemen Başla →</a>
-        <a href="#nasil" class="btn-ghost">Nasıl Çalışır?</a>
+        <button onclick="urunSeciciAc()" class="btn-cta">Uygulamayı Aç →</button>
+        <a href="#kurumsal" class="btn-ghost">Kurumsal</a>
       </div>
       <div class="hero-trust">
         <span class="green-dot"></span>
@@ -492,6 +550,81 @@
   </div>
 </div>
 
+<!-- ────────────── KURUMSAL ────────────── -->
+<div class="sec" id="kurumsal">
+  <div class="kurumsal-wrap reveal">
+    <div class="sec-tag" style="background:rgba(16,185,129,.12);color:#10B981;border-color:rgba(16,185,129,.28);">KURUMSAL</div>
+    <h2 class="sec-title" style="margin-top:14px;">Filoyu tek ekranda<br><span style="background:linear-gradient(135deg,#10B981,#059669);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">yönet</span></h2>
+    <p class="sec-sub">10'dan fazla aracınız mı var? Sürücü atama, filo geneli maliyet raporları ve çok kullanıcı desteğiyle şirket filonuzu kontrol altına alın.</p>
+    <div class="kurumsal-grid">
+      <div class="kf reveal d1">
+        <div class="kf-em">🚛</div>
+        <div class="kf-t">Filo Genel Bakış</div>
+        <div class="kf-d">Tüm araçlar tek ekranda. Toplam maliyet, aktif araç sayısı, bu ay özet.</div>
+      </div>
+      <div class="kf reveal d2">
+        <div class="kf-em">👤</div>
+        <div class="kf-t">Sürücü Yönetimi</div>
+        <div class="kf-d">Her sürücüye araç ataması, kişi başı yakıt & maliyet takibi.</div>
+      </div>
+      <div class="kf reveal d3">
+        <div class="kf-em">📊</div>
+        <div class="kf-t">Karşılaştırmalı Raporlar</div>
+        <div class="kf-d">Araç başına, sürücü başına maliyet karşılaştırması. CSV export.</div>
+      </div>
+      <div class="kf reveal d4">
+        <div class="kf-em">🔔</div>
+        <div class="kf-t">Bakım Takvimi</div>
+        <div class="kf-d">Tüm filo için muayene, sigorta, kasko vadelerini tek yerden takip et.</div>
+      </div>
+    </div>
+    <div style="margin-top:32px;">
+      <button onclick="kurumsalSecildi()" class="btn-green">Beta'ya Kaydol →</button>
+    </div>
+  </div>
+</div>
+
+<!-- ────────────── PRICING ────────────── -->
+<div class="sec" id="fiyat" style="padding-top:20px;">
+  <div class="text-center reveal">
+    <div class="sec-tag">FİYATLANDIRMA</div>
+    <h2 class="sec-title">Sade ve şeffaf</h2>
+    <p class="sec-sub">Bireysel kullanım sonsuza kadar ücretsiz. Kurumsal plan yakında.</p>
+  </div>
+  <div class="pricing-grid">
+    <div class="price-card reveal d1">
+      <div class="price-name">Bireysel</div>
+      <div class="price-who">1–10 araç · Kişisel kullanım</div>
+      <div class="price-amount" style="color:var(--green);">₺0</div>
+      <div class="price-period">Sonsuza kadar ücretsiz</div>
+      <ul class="price-feats">
+        <li><span class="ck">✓</span> Sınırsız araç ve kayıt</li>
+        <li><span class="ck">✓</span> Yakıt, servis, masraf takibi</li>
+        <li><span class="ck">✓</span> Finansal analiz (TL/USD/Altın)</li>
+        <li><span class="ck">✓</span> AI fiş tanıma</li>
+        <li><span class="ck">✓</span> Kayıt gerekmez</li>
+      </ul>
+      <button class="price-btn pbf" onclick="urunSeciciAc()">Hemen Başla →</button>
+    </div>
+    <div class="price-card featured reveal d2">
+      <div class="price-best">Yakında</div>
+      <div class="price-name">Kurumsal</div>
+      <div class="price-who">10–200 araç · Şirket filoso</div>
+      <div class="price-amount">?</div>
+      <div class="price-period">Fiyatlandırma belirleniyor</div>
+      <ul class="price-feats">
+        <li><span class="ck">✓</span> Filo genel bakış paneli</li>
+        <li><span class="ck">✓</span> Sürücü yönetimi & araç ataması</li>
+        <li><span class="ck">✓</span> Karşılaştırmalı maliyet raporları</li>
+        <li><span class="ck">✓</span> Bakım takvimi (tüm filo)</li>
+        <li><span class="ck">✓</span> CSV / Excel toplu export</li>
+        <li><span class="ck">✓</span> Çok kullanıcı desteği</li>
+      </ul>
+      <button class="price-btn pbp" onclick="kurumsalSecildi()">Beta Listesine Kaydol →</button>
+    </div>
+  </div>
+</div>
+
 <!-- ────────────── HOW IT WORKS ────────────── -->
 <div class="sec" id="nasil">
   <div class="text-center reveal">
@@ -564,6 +697,10 @@
       <div class="faq-q">LPG'li araç ekleyebilir miyim? <span class="faq-arrow">▾</span></div>
       <div class="faq-a">Evet. Benzinli araçlara LPG dönüşümü eklenebilir. Her dolumda benzin veya LPG seçimi yapılır, tüketim ayrı ayrı hesaplanır.</div>
     </div>
+    <div class="faq-item reveal d5" onclick="this.classList.toggle('open')">
+      <div class="faq-q">Kurumsal plan ne zaman çıkacak? <span class="faq-arrow">▾</span></div>
+      <div class="faq-a">Kurumsal filo yönetimi aktif geliştirme aşamasında. Beta listesine e-postanızı bırakarak öncelikli erişim alabilirsiniz. Fiyatlandırma beta sürecinde belirlenecek.</div>
+    </div>
   </div>
 </div>
 
@@ -572,9 +709,9 @@
   <div class="cta-box reveal">
     <h2>Aracının kontrolünü<br>geri al</h2>
     <p>Ücretsiz, kayıtsız, reklamsız. Hemen başla.</p>
-    <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-cta" style="margin:0 auto;display:inline-flex;">
+    <button onclick="urunSeciciAc()" class="btn-cta" style="margin:0 auto;display:inline-flex;">
       Uygulamayı Aç →
-    </a>
+    </button>
   </div>
 </div>
 
@@ -588,7 +725,62 @@
       <span>Araç Takip</span>
     </a>
     <p class="footer-copy">© 2026 Araç Takip. Tüm hakları saklıdır.</p>
-    <a href="https://aractakip-sandy.vercel.app/" target="_blank" class="btn-nav" style="font-size:13px;padding:9px 18px;">Uygulamayı Aç →</a>
+    <button onclick="urunSeciciAc()" class="btn-nav" style="font-size:13px;padding:9px 18px;">Uygulamayı Aç →</button>
+  </div>
+</div>
+
+<!-- ── ÜRÜN SEÇİCİ MODAL ── -->
+<div id="urun-modal" onclick="if(event.target===this)urunSeciciKapat()">
+  <div class="urun-panel">
+    <button class="urun-close" onclick="urunSeciciKapat()">✕</button>
+    <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px;">Nasıl kullanmak istersiniz?</div>
+    <div style="font-size:22px;font-weight:800;margin-bottom:4px;">Ürün Seçin</div>
+    <div class="urun-cards">
+      <div class="urun-card uc-b" onclick="window.open('https://aractakip-sandy.vercel.app/','_blank');urunSeciciKapat()">
+        <div class="urun-badge">BİREYSEL</div>
+        <h3>Kişisel Araç</h3>
+        <div class="urun-who">1–10 araç · Ücretsiz · Hemen kullan</div>
+        <ul class="urun-feats">
+          <li>Yakıt, servis ve masraf takibi</li>
+          <li>Finansal analiz (TL/USD/Altın)</li>
+          <li>AI fiş tanıma</li>
+          <li>Kayıt gerekmez</li>
+        </ul>
+        <button class="urun-cta">Hemen Başla →</button>
+      </div>
+      <div class="urun-card uc-k" onclick="kurumsalSecildi()">
+        <div class="urun-badge">KURUMSAL</div>
+        <h3>Filo Yönetimi</h3>
+        <div class="urun-who">10–200 araç · Beta · Yakında</div>
+        <ul class="urun-feats">
+          <li>Tüm filo tek ekranda</li>
+          <li>Sürücü yönetimi</li>
+          <li>Maliyet raporları</li>
+          <li>Çok kullanıcı desteği</li>
+        </ul>
+        <button class="urun-cta">Erken Erişim Al →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── KURUMSAL ERKEN ERİŞİM MODAL ── -->
+<div id="kurumsal-modal" onclick="if(event.target===this)kurumsalKapat()">
+  <div class="urun-panel" style="max-width:420px;" onclick="event.stopPropagation()">
+    <button class="urun-close" onclick="kurumsalKapat()">✕</button>
+    <div style="font-size:36px;margin-bottom:14px;">🏢</div>
+    <div style="font-size:22px;font-weight:800;margin-bottom:6px;">Kurumsal — Yakında</div>
+    <div style="font-size:14px;color:var(--text-sub);margin-bottom:28px;line-height:1.65;">Filo yönetimi aktif geliştirme aşamasında. E-postanızı bırakın, beta'ya ilk girenlerden olun.</div>
+    <div id="ea-form">
+      <input id="ea-email" type="email" placeholder="sirket@email.com" style="width:100%;padding:13px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;margin-bottom:10px;outline:none;font-family:inherit;" />
+      <input id="ea-sirket" type="text" placeholder="Şirket adı (opsiyonel)" style="width:100%;padding:13px 16px;border-radius:12px;border:1px solid rgba(255,255,255,.15);background:rgba(255,255,255,.06);color:#fff;font-size:14px;margin-bottom:16px;outline:none;font-family:inherit;" />
+      <button onclick="eaGonder()" class="btn-green" style="width:100%;justify-content:center;">Beta Listesine Kaydol</button>
+    </div>
+    <div id="ea-tesekkur" style="display:none;text-align:center;padding:16px 0;">
+      <div style="font-size:44px;margin-bottom:14px;">✅</div>
+      <div style="font-size:17px;font-weight:800;margin-bottom:8px;">Kaydınız alındı!</div>
+      <div style="font-size:14px;color:var(--text-sub);line-height:1.6;">Beta hazır olduğunda sizi bilgilendireceğiz.</div>
+    </div>
   </div>
 </div>
 
@@ -597,6 +789,44 @@
     entries.forEach(e => { if (e.isIntersecting) e.target.classList.add('on'); });
   }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
   document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+  function urunSeciciAc() {
+    const m = document.getElementById('urun-modal');
+    m.style.display = 'flex';
+    requestAnimationFrame(() => m.classList.add('open'));
+  }
+  function urunSeciciKapat() {
+    const m = document.getElementById('urun-modal');
+    m.classList.remove('open');
+    setTimeout(() => { m.style.display = 'none'; }, 250);
+  }
+  function kurumsalSecildi() {
+    urunSeciciKapat();
+    const m = document.getElementById('kurumsal-modal');
+    document.getElementById('ea-form').style.display = 'block';
+    document.getElementById('ea-tesekkur').style.display = 'none';
+    document.getElementById('ea-email').value = '';
+    document.getElementById('ea-sirket').value = '';
+    setTimeout(() => { m.style.display = 'flex'; requestAnimationFrame(() => m.classList.add('open')); }, 280);
+  }
+  function kurumsalKapat() {
+    const m = document.getElementById('kurumsal-modal');
+    m.classList.remove('open');
+    setTimeout(() => { m.style.display = 'none'; }, 250);
+  }
+  function eaGonder() {
+    const email = document.getElementById('ea-email').value.trim();
+    if (!email || !email.includes('@')) {
+      document.getElementById('ea-email').style.borderColor = '#EF4444';
+      document.getElementById('ea-email').focus();
+      return;
+    }
+    document.getElementById('ea-form').style.display = 'none';
+    document.getElementById('ea-tesekkur').style.display = 'block';
+  }
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { urunSeciciKapat(); kurumsalKapat(); }
+  });
 </script>
 
 </body>
