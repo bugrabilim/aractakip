@@ -15,10 +15,10 @@ Bu dosya tüm ajanlar tarafından okunur. Kuralları değiştirmeden önce kulla
 | Framework | React 18 SPA, Vite 5 |
 | Stil | Inline `style={{ }}` + `T.*` tema nesnesi (Tailwind YOK, CSS class YOK) |
 | Storage | `localStorage` wrapper: `stGet(k)` / `stSet(k, v)` |
-| Backend | YOK — tüm veri `data:${kod}` anahtarında localStorage'da |
+| Backend | YOK — bireysel veri `data:${kod}`, filo verisi `fleet:${sirketKodu}:veri` anahtarında |
 | Deploy | GitHub `main` → Vercel otomatik |
 
-**Tek dosya mimarisi:** Tüm uygulama kodu `src/App.jsx` içinde (~1800 satır, 110 KB).  
+**Tek dosya mimarisi:** Tüm uygulama kodu `src/App.jsx` içinde (~2150 satır, 130 KB).  
 Landing page ayrı: `landing/index.html` (bağımsız HTML/CSS/JS dosyası).
 
 ⚠️ `public/landing.html` eski bir kopyadır, düzenleme. Güncel landing: `landing/index.html`.
@@ -60,6 +60,8 @@ T.success    = "#16A34A"   ← başarı
 
 ## Veri Yapısı
 
+**Bireysel** — `data:${kod}`
+
 ```js
 veri = {
   araclar: [],          // AracForm objelerinin listesi
@@ -72,18 +74,46 @@ veri = {
 }
 ```
 
+**Kurumsal filo** — `fleet:${sirketKodu}:veri`
+
+```js
+veri = {
+  sirket: { ad, kod, olusturulma },
+  araclar: [],
+  suruculer: [],        // { id, kod, ad, telefon, atanmisAracId }
+  doldurmalar: {},
+  masraflar: {},
+}
+```
+
+Sürücü kodu → şirket eşlemesi ayrı anahtarda: `surucu:${surucuKodu}` → `{ sirketKodu, surucuId }`.
+Silinen sürücünün eşlemesi `null` yazılarak geçersizleştirilir.
+
+**Oturum nesnesi** — `App()` içinde tutulur, storage anahtarını `oturumAnahtari(oturum)` üretir.
+
+```js
+{ tur: "bireysel", kod }
+{ tur: "kurumsal", rol: "admin", sirketKodu }
+{ tur: "kurumsal", rol: "surucu", sirketKodu, surucuId }
+```
+
 ---
 
 ## Ekran / Modal Haritası
 
 ```
 GirisEkrani
-  └── sekme: giris | yeni | unut
+  ├── mod: bireysel | kurumsal
+  ├── bireysel sekme: giris | yeni | unut
+  └── kurumsal sekme: giris (rol: admin | surucu) | sirket
 
 App()
-  ├── ekran: zaman | finansal | yakit | bilgi
-  └── modal: fab | arac | dolum | masraf | servis | aracSecici | profil
+  ├── ekran: filo | suruculer | zaman | finansal | yakit | bilgi
+  └── modal: fab | arac | dolum | masraf | servis | aracSecici | surucu | profil | filoHesap
 ```
+
+`filo` / `suruculer` sadece yöneticide, `finansal` sürücüde gizli. Ekranda ne çizileceğini
+`gorunum` değişkeni belirler — yöneticinin hiç aracı yokken `ekran` ne olursa olsun `filo`ya düşer.
 
 Modal açmak için: `setModal("modal-adi")` + gerekirse `setEditKayit(kayit)`.
 
@@ -148,7 +178,7 @@ Ajanlar birbirini `Agent` tool ile çağırır. Her ajan bu CLAUDE.md'yi okuyara
 |---|---|
 | **Bireysel App** | Canlı ve çalışıyor. Çoklu araç, yakıt/masraf/servis takibi, finansal analiz, AI fiş tanıma, responsive sidebar tamam. |
 | **Landing Page** | Canlı. Bireysel/Kurumsal ürün seçici modal, kurumsal bölümü, fiyatlandırma eklendi. |
-| **Kurumsal Filo** | Tasarım ve veri modeli kararlaştırıldı, **kod yazılmadı**. Sıradaki ana iş. |
+| **Kurumsal Filo** | **Faz 1 kodlandı** — kurumsal/sürücü giriş ayrımı, şirket kurma, filo paneli, sürücü yönetimi, sürücünün kısıtlı görünümü. Eksik: Raporlar ekranı. |
 
 ### Kilitli ürün kararları — tartışma, uygula
 
@@ -158,21 +188,17 @@ Ajanlar birbirini `Agent` tool ile çağırır. Her ajan bu CLAUDE.md'yi okuyara
 - **Fiyatlandırma:** ₺99/araç/ay (6-50 araç), ₺69/araç/ay (50+ araç), 1-5 araç ücretsiz. Aylık ödeme, yıllık taahhüt yok.
 - **En yakın rakip:** Filorapor — GPS gerektirmiyor ama yıllık peşin taahhüt istiyor (~₺28,8/araç/ay). Bizim farkımız: aylık ödeme, sürücü mobil uygulaması, self-servis kurulum, açık fiyat.
 
-### Sonraki adım — Kurumsal Filo MVP Faz 1
+### Kurumsal Filo Faz 1 — tamamlandı
 
-1. `GirisEkrani`'na kurumsal giriş seçeneği — şirket kodu / sürücü kodu ayrımı
-2. Şirket oluşturma akışı — yeni şirket kodu üretimi
-3. Admin rolü için `FiloDashboard` ekranı
-4. Sürücü rolü için kısıtlı giriş — sadece kendi aracı
+- [x] `GirisEkrani` bireysel/kurumsal mod ayrımı + yönetici/sürücü rol seçimi
+- [x] Şirket kurma akışı — 6 haneli şirket kodu üretimi
+- [x] `FiloEkran` — araç grid'i, filo metrikleri, birleşik kritik uyarı listesi
+- [x] `SurucularEkran` + `SurucuFormModal` — sürücü ekle/düzenle/sil, araç ataması, sürücü kodu üretimi
+- [x] Sürücü rolü kısıtlı giriş — sadece atanmış aracı; finansal ekran ve araç yönetimi kapalı
 
-Veri modeli ve ekran tasarımı: `HANDOFF.md` §7.
+**Roller:** Yönetici (şirket kodu ile girer) → filo paneli, sürücü yönetimi, araç ekleme. Sürücü (sürücü kodu ile girer) → sadece kendi aracına dolum/masraf/servis girişi.
 
-**Roller:** Admin (şirket kodu) → dashboard, sürücü yönetimi, raporlar, araç ekleme. Sürücü (sürücü kodu) → sadece kendi aracına km/dolum/masraf girişi.
-
-```
-localStorage anahtarı: fleet:{sirketKodu}:veri
-{ sirket, araclar, suruculer, doldurmalar, masraflar }
-```
+**Sıradaki iş — Raporlar ekranı:** araç/sürücü karşılaştırma, aylık trend, CSV export.
 
 ### Bireysel app backlog
 

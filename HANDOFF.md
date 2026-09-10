@@ -23,8 +23,8 @@ Bu repoda çalışıyoruz: https://github.com/bugrabilim/aractakip.git
 Sonra `npm install` çalıştır ve `src/App.jsx` dosyasını oku.
 
 Ardından HANDOFF.md §8'deki "Sonraki Adımlar" listesinin 1. maddesinden
-devam et: Kurumsal Filo MVP Faz 1 — giriş ekranına kurumsal/sürücü rol
-ayrımı ekle.
+devam et: Kurumsal Filo Faz 1'in son eksiği — Raporlar ekranı
+(araç/sürücü karşılaştırma, aylık trend, CSV export).
 
 Kurallar: Türkçe konuş, inline stil kullan (Tailwind yok),
 lucide-react@0.383.0 sürümünü değiştirme, soru sormadan mantıklı kararı
@@ -47,7 +47,7 @@ Tarayıcı tabanlı React SPA. Backend yok, sunucu yok — tüm veri kullanıcı
 |---|---|---|
 | **Bireysel App** | https://aractakip-sandy.vercel.app/ | Canlı, çalışıyor |
 | **Landing Page** | https://aractakip-acxr.vercel.app/ | Canlı, Bireysel/Kurumsal seçici eklendi |
-| **Kurumsal Filo** | — | Tasarım bitti, **kod yazılmadı** |
+| **Kurumsal Filo** | aractakip-sandy.vercel.app | Faz 1 kodlandı — Raporlar ekranı eksik |
 
 ---
 
@@ -82,7 +82,7 @@ Tarayıcı tabanlı React SPA. Backend yok, sunucu yok — tüm veri kullanıcı
 
 ### 2.4 Yarım kalanlar / yapılmayanlar
 
-- ❌ **Kurumsal Filo kodu hiç yazılmadı.** Sadece tasarım ve veri modeli kararlaştırıldı (§7).
+- ✅ **Kurumsal Filo Faz 1 kodlandı** (2026-09-10 oturumu). Kalan: Raporlar ekranı.
 - ❌ Landing'deki kurumsal erken erişim formu **hiçbir yere veri göndermiyor** — sadece "Kaydınız alındı" mesajı gösteriyor. Backend/e-posta entegrasyonu yok.
 - ❌ Derin araştırmaların doğrulama (verification) aşaması 3 kez rate limit'e takıldı. Bulgular ham çıktıdan elle sentezlendi — **kaynaklar tekrar doğrulanmadı.** Fiyat bilgilerini karar öncesi teyit et.
 - ❌ `public/landing.html` (37 KB) eski sürüm, `landing/index.html` (52 KB) güncel sürüm. İkisi senkron değil — temizlik gerekiyor.
@@ -110,7 +110,7 @@ Tarayıcı tabanlı React SPA. Backend yok, sunucu yok — tüm veri kullanıcı
 2. **Tailwind yok, CSS class yok.** Sadece `style={{ }}` ve `T.*` sabitleri.
 3. **Yorum satırı ekleme** — iyi isimlendirilmiş kod kendini açıklar.
 4. **Türkçe arayüz** — tüm label, placeholder, hata mesajı Türkçe.
-5. **Tek dosya mimarisi** — tüm uygulama `src/App.jsx` içinde (~1800 satır, 110 KB). Bölme, framework ekleme, state kütüphanesi kurma.
+5. **Tek dosya mimarisi** — tüm uygulama `src/App.jsx` içinde (~2150 satır, 130 KB). Bölme, framework ekleme, state kütüphanesi kurma.
 
 ### Tema sabitleri (`T` nesnesi — `src/App.jsx` içinde)
 
@@ -144,6 +144,8 @@ T.success    = "#16A34A"
 
 ### Veri modeli
 
+**Bireysel** — storage anahtarı `data:${kod}`, `kod` 6 haneli giriş kodu (kayıt gerekmez).
+
 ```js
 veri = {
   araclar: [],        // AracForm[]
@@ -156,18 +158,44 @@ veri = {
 }
 ```
 
-Storage anahtarı: `data:${kod}` — `kod` 6 haneli giriş kodu (kayıt gerekmez).
+**Kurumsal filo** — storage anahtarı `fleet:${sirketKodu}:veri`
+
+```js
+veri = {
+  sirket: { ad, kod, olusturulma },
+  araclar: [],
+  suruculer: [],      // { id, kod, ad, telefon, atanmisAracId }
+  doldurmalar: {},
+  masraflar: {},
+}
+```
+
+Sürücü kodu eşlemesi ayrı anahtarda: `surucu:${surucuKodu}` → `{ sirketKodu, surucuId }`.
+Sürücü silinince eşlemeye `null` yazılır — kod geçersizleşir.
+
+**Oturum nesnesi** — hangi storage anahtarının kullanılacağını `oturumAnahtari(oturum)` belirler.
+
+```js
+{ tur: "bireysel", kod }
+{ tur: "kurumsal", rol: "admin", sirketKodu }
+{ tur: "kurumsal", rol: "surucu", sirketKodu, surucuId }
+```
 
 ### Ekran / modal haritası
 
 ```
 GirisEkrani
-  └── sekme: giris | yeni | unut
+  ├── mod: bireysel | kurumsal
+  ├── bireysel sekme: giris | yeni | unut
+  └── kurumsal sekme: giris (rol: admin | surucu) | sirket
 
 App()
-  ├── ekran: zaman | finansal | yakit | bilgi
-  └── modal: fab | arac | dolum | masraf | servis | aracSecici | profil
+  ├── ekran: filo | suruculer | zaman | finansal | yakit | bilgi
+  └── modal: fab | arac | dolum | masraf | servis | aracSecici | surucu | profil | filoHesap
 ```
+
+`filo` / `suruculer` sadece yöneticide, `finansal` sürücüde gizli. Çizilen ekranı `gorunum`
+değişkeni belirler — yöneticinin hiç aracı yokken `ekran` ne olursa olsun `filo`ya düşer.
 
 Modal açmak için: `setModal("modal-adi")` + gerekirse `setEditKayit(kayit)`.
 
@@ -249,31 +277,29 @@ Dosya: `landing/index.html` — bağımsız HTML/CSS/JS, Vite build gerektirmez.
 
 ---
 
-## 7. KURUMSAL FİLO MVP — TASARIM (kod yazılmadı)
+## 7. KURUMSAL FİLO MVP — FAZ 1 KODLANDI
 
-### Faz 1 — localStorage + paylaşımlı şirket kodu
+Veri modeli §3'te. Tasarımdan iki sapma:
 
-```
-localStorage anahtarı: fleet:{sirketKodu}:veri
-
-{
-  sirket:      { ad, kod, adminKodu, olusturulma },
-  araclar:     [ AracForm[] ],
-  suruculer:   [ { id, ad, telefon, atanmisAracId } ],
-  doldurmalar: { [aracId]: DolumKayit[] },
-  masraflar:   { [aracId]: MasrafKayit[] }
-}
-```
+- **`sirket.adminKodu` yazılmadı** — yönetici zaten şirket koduyla giriyor, ikinci kod hiçbir akışta
+  kullanılmıyordu. Kullanılmayan alan bırakma kuralı gereği düşürüldü.
+- **`suruculer[].kod` eklendi** — sürücü girişi 6 haneli koda dayanıyor, alan zorunluydu.
+  Kod → şirket eşlemesi `surucu:{kod}` anahtarında, mevcut `email:{...}` deseniyle aynı.
 
 **Roller:**
-- **Admin** (şirket kodu ile girer) → filo dashboard, sürücü yönetimi, raporlar, araç ekleme
-- **Sürücü** (sürücü kodu ile girer) → sadece kendi aracına km/dolum/masraf girişi
+- **Yönetici** (şirket kodu ile girer) → filo paneli, sürücü yönetimi, araç ekleme, her aracın detayı
+- **Sürücü** (sürücü kodu ile girer) → sadece atanmış aracına dolum/masraf/servis girişi.
+  Finansal ekran, araç seçici, araç ekle/düzenle/sil kapalı; başka aracın verisi görünmüyor.
 
-**Yeni ekranlar:**
-1. **Filo Dashboard** — tüm araçlar grid, toplam maliyet, bu ay özeti, kritik uyarılar
-2. **Sürücüler** — liste, araç ataması, kişi başı maliyet
-3. **Araç Detay** — bireysel app'teki 4 sekme (zaman/finansal/yakıt/bilgi) aynen yeniden kullanılacak
-4. **Raporlar** — araç/sürücü karşılaştırma, aylık trend, CSV export
+**Ekranlar:**
+1. [x] **Filo Paneli** (`FiloEkran`) — araç grid'i, 4 metrik, birleşik kritik uyarı listesi
+2. [x] **Sürücüler** (`SurucularEkran` + `SurucuFormModal`) — liste, araç ataması, kopyalanabilir sürücü kodu, kişi başı aylık maliyet
+3. [x] **Araç Detay** — bireysel app'teki 4 sekme aynen yeniden kullanıldı
+4. [ ] **Raporlar** — araç/sürücü karşılaştırma, aylık trend, CSV export
+
+**Test edildi (Playwright, gerçek tarayıcı):** şirket kurma → araç ekle → sürücü ekle →
+sürücü koduyla giriş → sürücünün kayıt girişi → yöneticinin kaydı görmesi; rol sızıntısı yok
+(şirket kodu sürücü rolüyle giriş yapamıyor, sürücü başka aracı göremiyor). Bireysel taraf regresyonsuz.
 
 ### Faz 2 — sonraya bırakıldı
 
@@ -283,14 +309,18 @@ Supabase migrasyonu, gerçek kimlik doğrulama, Stripe faturalama, çoklu cihaz 
 
 ## 8. SONRAKİ ADIMLAR (öncelik sırasıyla)
 
-### 🔴 1 — Kurumsal Filo MVP Faz 1 (ana iş)
+### 🔴 1 — Raporlar ekranı (Faz 1'in son eksiği)
 
-1. `GirisEkrani`'na kurumsal giriş seçeneği ekle — şirket kodu / sürücü kodu ayrımı
-2. Şirket oluşturma akışı — yeni şirket kodu üretimi
-3. Admin rolü için `FiloDashboard` ekranı (yeni ana ekran)
-4. Sürücü rolü için kısıtlı giriş — sadece kendi aracı
+1. Araç karşılaştırma tablosu — km, yakıt, masraf, TL/km
+2. Sürücü karşılaştırma — kişi başı maliyet, aylık trend
+3. Aylık trend grafiği — mevcut recharts `BarChart` desenini kullan
+4. **CSV export** — bireysel tarafta da eksik; tek fonksiyon ikisini de karşılar
 
-Başlangıç noktası: `src/App.jsx` içindeki mevcut `GirisEkrani` bileşenini genişlet.
+Başlangıç noktası: `FiloEkran` bileşeninin yanına `RaporEkran` ekle, `SolMenu`'deki
+`filoItems` listesine bir giriş, `EKRAN_ADI`'ya bir başlık.
+
+**Faz 1 tamamlandı:** kurumsal/sürücü giriş ayrımı, şirket kurma, filo paneli,
+sürücü yönetimi, sürücünün kısıtlı görünümü — hepsi `src/App.jsx` içinde.
 
 ### 🟡 2 — Bireysel app backlog
 
@@ -326,7 +356,7 @@ repo/
 ├── CLAUDE.md               ← proje kuralları (her oturumda ilk okunacak)
 ├── STATUS.md               ← özellik durumu ve yol haritası
 ├── src/
-│   ├── App.jsx             ← TÜM UYGULAMA KODU (~1800 satır, 110 KB)
+│   ├── App.jsx             ← TÜM UYGULAMA KODU (~2150 satır, 130 KB)
 │   └── main.jsx            ← React entry point — dokunma
 ├── landing/
 │   └── index.html          ← GÜNCEL landing page (52 KB, bağımsız)
@@ -440,3 +470,4 @@ Landing değişikliğinde build adımı gerekmez, doğrudan `git add landing/ind
 | 2026-06-22 | Landing page Bireysel/Kurumsal ayrımı |
 | 2026-07-01 | `STATUS.md` — pazar araştırması ve kurumsal yol haritası |
 | 2026-09-10 | `HANDOFF.md` — yerel klasör kapatıldı, buluta devir |
+| 2026-09-10 | **Kurumsal Filo Faz 1** — giriş rol ayrımı, şirket kurma, filo paneli, sürücü yönetimi, sürücü kısıtlı görünümü |
