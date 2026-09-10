@@ -5,6 +5,7 @@ import {
   Wallet, Receipt, Bike, Bus, Truck, Sailboat, Tractor, Caravan, AlertTriangle,
   Image as ImageIcon, Bell, BarChart2, Camera, Wrench, Calendar, Clock, FileText,
   MapPin, ChevronRight, TrendingDown, List, User, Menu,
+  Users, Building2, UserPlus, LayoutGrid, Phone, Shield,
 } from "lucide-react";
 
 // ═════════════════════════════════════════════════════════════
@@ -127,6 +128,13 @@ function tarihDurum(str) {
   const gun = Math.round((new Date(str) - b) / 864e5);
   return { durum: gun < 0 ? "gecmis" : gun <= UYARI_GUN ? "yaklasıyor" : "normal", gun };
 }
+function aylikToplam(dolumlar, masraflar, ay) {
+  return {
+    yakit: dolumlar.filter((d) => d.tarih.startsWith(ay)).reduce((s, d) => s + d.tutar, 0),
+    masraf: masraflar.filter((m) => m.tip === "masraf" && m.tarih.startsWith(ay)).reduce((s, m) => s + m.tutar, 0),
+    servis: masraflar.filter((m) => m.tip === "servis" && m.tarih.startsWith(ay)).reduce((s, m) => s + m.tutar, 0),
+  };
+}
 function sonKm(doldurmalar, id) {
   const ks = (doldurmalar?.[id] || []);
   return ks.length ? Math.max(...ks.map((k) => k.km)) : null;
@@ -187,6 +195,9 @@ async function stSet(k, v) {
   bellekMap.set(k, v); return true;
 }
 function bosVeri() { return { araclar: [], doldurmalar: {}, masraflar: {}, eposta: null, ad: null, telefon: null }; }
+function bosFiloVeri(ad, kod) { return { sirket: { ad, kod, olusturulma: bugunStr() }, araclar: [], suruculer: [], doldurmalar: {}, masraflar: {} }; }
+const filoAnahtari = (sirketKodu) => `fleet:${sirketKodu}:veri`;
+const oturumAnahtari = (o) => (o.tur === "kurumsal" ? filoAnahtari(o.sirketKodu) : `data:${o.kod}`);
 
 // ═════════════════════════════════════════════════════════════
 // TEMA — Drivvo (açık tema, lacivert üst bar, mavi vurgu)
@@ -228,6 +239,7 @@ function Field({ label, children }) {
   );
 }
 const inputStil = { width: "100%", background: T.card, border: `1px solid ${T.border}`, borderRadius: 10, padding: "11px 14px", color: T.text, fontSize: 15 };
+const kodInputStil = { width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", color: T.text, fontSize: 24, fontWeight: 700, letterSpacing: "0.2em", textAlign: "center" };
 function Input({ label, value, onChange, placeholder, type = "text", max, min }) {
   return <Field label={label}><input value={value} type={type} max={max} min={min} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} style={inputStil} /></Field>;
 }
@@ -399,10 +411,15 @@ function useGenis() {
 }
 
 // ─── SOL MENÜ (desktop sidebar + mobil drawer) ─────────────────
-function SolMenu({ ekran, setEkran, aktifArac, araclar, setAktifAracId, setModal, setEditArac, setEditKayit, cikis, kod, onKapat }) {
+function SolMenu({ gorunum, setEkran, aktifArac, setModal, setEditArac, setEditKayit, setEditSurucu, cikis, kod, kurumsal, rol, sirket, onKapat }) {
+  const surucuMu = rol === "surucu";
+  const filoItems = rol === "admin" ? [
+    { id: "filo", l: "Filo Paneli", ikon: <LayoutGrid size={17} /> },
+    { id: "suruculer", l: "Sürücüler", ikon: <Users size={17} /> },
+  ] : [];
   const navItems = [
     { id: "zaman", l: "Akış", ikon: <List size={17} /> },
-    { id: "finansal", l: "Finansal", ikon: <BarChart2 size={17} /> },
+    ...(surucuMu ? [] : [{ id: "finansal", l: "Finansal", ikon: <BarChart2 size={17} /> }]),
     { id: "yakit", l: "Yakıt", ikon: <Fuel size={17} /> },
     { id: "bilgi", l: "Araç Bilgisi", ikon: <FileText size={17} /> },
   ];
@@ -410,20 +427,38 @@ function SolMenu({ ekran, setEkran, aktifArac, araclar, setAktifAracId, setModal
     { l: "Dolum Ekle", ikon: <Fuel size={15} />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); onKapat?.(); } },
     { l: "Masraf Ekle", ikon: <Receipt size={15} />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); onKapat?.(); } },
     { l: "Servis Ekle", ikon: <Wrench size={15} />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); onKapat?.(); } },
-    { l: "Araç Ekle", ikon: <Car size={15} />, renk: T.primary, cb: () => { setEditArac(null); setModal("arac"); onKapat?.(); } },
+    ...(surucuMu ? [] : [{ l: "Araç Ekle", ikon: <Car size={15} />, renk: T.primary, cb: () => { setEditArac(null); setModal("arac"); onKapat?.(); } }]),
+    ...(rol === "admin" ? [{ l: "Sürücü Ekle", ikon: <UserPlus size={15} />, renk: T.servis, cb: () => { setEditSurucu(null); setModal("surucu"); onKapat?.(); } }] : []),
   ];
+  const navStil = (aktif) => ({
+    width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "11px 16px",
+    color: aktif ? "#fff" : "rgba(255,255,255,0.5)",
+    background: aktif ? "rgba(255,255,255,0.12)" : "transparent",
+    fontSize: 13, fontWeight: aktif ? 700 : 500,
+    borderLeft: `3px solid ${aktif ? T.primary : "transparent"}`,
+  });
+  const bolumBaslik = (metin) => (
+    <div style={{ padding: "14px 16px 6px" }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.28)", letterSpacing: "0.09em" }}>{metin}</span>
+    </div>
+  );
+
   return (
     <div style={{ width: "100%", height: "100%", background: T.navy, display: "flex", flexDirection: "column", minHeight: "100vh" }}>
       <div style={{ padding: "22px 18px 16px", display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ width: 34, height: 34, borderRadius: 10, background: T.primary, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-          <Car size={18} color="#fff" />
+          {kurumsal ? <Building2 size={18} color="#fff" /> : <Car size={18} color="#fff" />}
         </div>
-        <span style={{ fontSize: 15, fontWeight: 800, color: "#fff" }}>Araç Takip</span>
-        {onKapat && <button onClick={onKapat} style={{ marginLeft: "auto", color: "rgba(255,255,255,0.4)", display: "flex" }}><X size={20} /></button>}
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 15, fontWeight: 800, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{kurumsal ? sirket.ad : "Araç Takip"}</div>
+          {kurumsal && <div style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.4)", letterSpacing: "0.06em" }}>{rol === "admin" ? "FİLO YÖNETİCİSİ" : "SÜRÜCÜ"}</div>}
+        </div>
+        {onKapat && <button onClick={onKapat} style={{ color: "rgba(255,255,255,0.4)", display: "flex" }}><X size={20} /></button>}
       </div>
+
       {aktifArac && (
         <div style={{ margin: "0 12px 12px" }}>
-          <button onClick={() => { setModal("aracSecici"); onKapat?.(); }} style={{ width: "100%", background: "rgba(255,255,255,0.09)", borderRadius: 12, padding: "11px 13px", display: "flex", alignItems: "center", gap: 10 }}>
+          <button onClick={surucuMu ? undefined : () => { setModal("aracSecici"); onKapat?.(); }} style={{ width: "100%", background: "rgba(255,255,255,0.09)", borderRadius: 12, padding: "11px 13px", display: "flex", alignItems: "center", gap: 10, cursor: surucuMu ? "default" : "pointer" }}>
             <div style={{ width: 32, height: 32, borderRadius: 9, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, overflow: "hidden" }}>
               {aktifArac.foto ? <img src={aktifArac.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <TasitIkonu tip={aktifArac.tasitTipi} size={16} color="#fff" />}
             </div>
@@ -431,41 +466,51 @@ function SolMenu({ ekran, setEkran, aktifArac, araclar, setAktifAracId, setModal
               <div style={{ fontSize: 13, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{aktifArac.marka} {aktifArac.model}</div>
               <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{aktifArac.plaka || tl(aktifArac.tasitTipi)}</div>
             </div>
-            <ChevronDown size={14} color="rgba(255,255,255,0.4)" />
+            {!surucuMu && <ChevronDown size={14} color="rgba(255,255,255,0.4)" />}
           </button>
         </div>
       )}
+
       <div style={{ flex: 1, overflowY: "auto", paddingBottom: 8 }}>
-        <div style={{ padding: "8px 16px 6px" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.28)", letterSpacing: "0.09em" }}>GÖRÜNÜM</span>
-        </div>
-        {navItems.map((item) => (
-          <button key={item.id} onClick={() => { setEkran(item.id); onKapat?.(); }} style={{
-            width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "11px 16px",
-            color: ekran === item.id ? "#fff" : "rgba(255,255,255,0.5)",
-            background: ekran === item.id ? "rgba(255,255,255,0.12)" : "transparent",
-            fontSize: 13, fontWeight: ekran === item.id ? 700 : 500,
-            borderLeft: `3px solid ${ekran === item.id ? T.primary : "transparent"}`,
-          }}>
-            {item.ikon} {item.l}
-          </button>
-        ))}
-        <div style={{ padding: "14px 16px 6px" }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: "rgba(255,255,255,0.28)", letterSpacing: "0.09em" }}>KAYIT EKLE</span>
-        </div>
-        {ekleItems.map((item) => (
-          <button key={item.l} onClick={item.cb} style={{
-            width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
-            color: "rgba(255,255,255,0.55)", background: "transparent", fontSize: 13, fontWeight: 500,
-            borderLeft: "3px solid transparent",
-          }}>
-            <span style={{ color: item.renk, display: "flex" }}>{item.ikon}</span>{item.l}
-          </button>
-        ))}
+        {filoItems.length > 0 && (
+          <>
+            {bolumBaslik("FİLO")}
+            {filoItems.map((item) => (
+              <button key={item.id} onClick={() => { setEkran(item.id); onKapat?.(); }} style={navStil(gorunum === item.id)}>
+                {item.ikon} {item.l}
+              </button>
+            ))}
+          </>
+        )}
+        {aktifArac && (
+          <>
+            {bolumBaslik(kurumsal ? "SEÇİLİ ARAÇ" : "GÖRÜNÜM")}
+            {navItems.map((item) => (
+              <button key={item.id} onClick={() => { setEkran(item.id); onKapat?.(); }} style={navStil(gorunum === item.id)}>
+                {item.ikon} {item.l}
+              </button>
+            ))}
+          </>
+        )}
+        {(aktifArac || rol === "admin") && (
+          <>
+            {bolumBaslik("KAYIT EKLE")}
+            {(aktifArac ? ekleItems : ekleItems.filter((it) => it.l === "Araç Ekle" || it.l === "Sürücü Ekle")).map((item) => (
+              <button key={item.l} onClick={item.cb} style={{
+                width: "100%", display: "flex", alignItems: "center", gap: 12, padding: "10px 16px",
+                color: "rgba(255,255,255,0.55)", background: "transparent", fontSize: 13, fontWeight: 500,
+                borderLeft: "3px solid transparent",
+              }}>
+                <span style={{ color: item.renk, display: "flex" }}>{item.ikon}</span>{item.l}
+              </button>
+            ))}
+          </>
+        )}
       </div>
+
       <div style={{ borderTop: "1px solid rgba(255,255,255,0.1)", padding: "14px 12px" }}>
-        <button onClick={() => { setModal("profil"); onKapat?.(); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 8px", borderRadius: 10, color: "rgba(255,255,255,0.6)", fontSize: 13, background: "transparent" }}>
-          <User size={15} /><span style={{ flex: 1, textAlign: "left" }}>Profil</span>
+        <button onClick={() => { setModal(kurumsal ? "filoHesap" : "profil"); onKapat?.(); }} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 8px", borderRadius: 10, color: "rgba(255,255,255,0.6)", fontSize: 13, background: "transparent" }}>
+          <User size={15} /><span style={{ flex: 1, textAlign: "left" }}>{kurumsal ? "Hesap" : "Profil"}</span>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 700, letterSpacing: "0.12em" }}>{kod}</span>
         </button>
         <button onClick={cikis} style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "7px 8px", color: "rgba(255,255,255,0.3)", fontSize: 13, background: "transparent" }}>
@@ -477,6 +522,7 @@ function SolMenu({ ekran, setEkran, aktifArac, araclar, setAktifAracId, setModal
 }
 
 function GirisEkrani({ onGiris }) {
+  const [mod, setMod] = useState("bireysel");
   const [sekme, setSekme] = useState("giris");
   const [girisKod, setGirisKod] = useState("");
   const [yeniKod] = useState(kodUret());
@@ -484,6 +530,10 @@ function GirisEkrani({ onGiris }) {
   const [hata, setHata] = useState("");
   const [kopya, setKopya] = useState(false);
   const [cihazdaYok, setCihazdaYok] = useState(false);
+  const [rol, setRol] = useState("admin");
+  const [filoKod, setFiloKod] = useState("");
+  const [sirketAd, setSirketAd] = useState("");
+  const [yeniSirketKodu] = useState(kodUret());
 
   async function demoGiris() {
     const k = "111111";
@@ -510,7 +560,7 @@ function GirisEkrani({ onGiris }) {
       ]},
     };
     await stSet(`data:${k}`, d);
-    onGiris(k, d);
+    onGiris({ tur: "bireysel", kod: k }, d);
   }
 
   async function girisYap() {
@@ -518,13 +568,13 @@ function GirisEkrani({ onGiris }) {
     if (k.length !== 6 || !/^\d+$/.test(k)) { setHata("6 haneli rakamsal kod gir."); return; }
     const d = await stGet(`data:${k}`);
     if (!d) { setHata(""); setCihazdaYok(true); return; }
-    onGiris(k, d);
+    onGiris({ tur: "bireysel", kod: k }, d);
   }
   async function buKodlaBasla() {
     const k = girisKod.trim();
     const yeni = bosVeri();
     await stSet(`data:${k}`, yeni);
-    onGiris(k, yeni);
+    onGiris({ tur: "bireysel", kod: k }, yeni);
   }
   async function hesapOlustur() {
     const mevcut = await stGet(`data:${yeniKod}`);
@@ -532,35 +582,76 @@ function GirisEkrani({ onGiris }) {
     const yeni = bosVeri();
     if (eposta.trim()) { yeni.eposta = eposta.trim(); await stSet(`email:${eposta.trim().toLowerCase()}`, yeniKod); }
     await stSet(`data:${yeniKod}`, yeni);
-    onGiris(yeniKod, yeni);
+    onGiris({ tur: "bireysel", kod: yeniKod }, yeni);
   }
+
+  async function kurumsalGiris() {
+    const k = filoKod.trim();
+    if (k.length !== 6 || !/^\d+$/.test(k)) { setHata("6 haneli rakamsal kod gir."); return; }
+    if (rol === "admin") {
+      const d = await stGet(filoAnahtari(k));
+      if (!d) { setHata("Bu şirket kodu bu cihazda bulunamadı."); return; }
+      onGiris({ tur: "kurumsal", rol: "admin", sirketKodu: k }, d);
+      return;
+    }
+    const bag = await stGet(`surucu:${k}`);
+    const d = bag ? await stGet(filoAnahtari(bag.sirketKodu)) : null;
+    const s = d?.suruculer?.find((x) => x.id === bag.surucuId);
+    if (!s) { setHata("Bu sürücü kodu bu cihazda bulunamadı."); return; }
+    onGiris({ tur: "kurumsal", rol: "surucu", sirketKodu: bag.sirketKodu, surucuId: bag.surucuId }, d);
+  }
+  async function sirketOlustur() {
+    if (!sirketAd.trim()) { setHata("Şirket adını gir."); return; }
+    if (await stGet(filoAnahtari(yeniSirketKodu))) { setHata("Kod çakışması, sayfayı yenile."); return; }
+    const yeni = bosFiloVeri(sirketAd.trim(), yeniSirketKodu);
+    await stSet(filoAnahtari(yeniSirketKodu), yeni);
+    onGiris({ tur: "kurumsal", rol: "admin", sirketKodu: yeniSirketKodu }, yeni);
+  }
+
+  function modDegistir(m) { setMod(m); setSekme("giris"); setHata(""); setCihazdaYok(false); }
+  const sekmeler = mod === "bireysel"
+    ? [{ id: "giris", l: "Giriş" }, { id: "yeni", l: "Yeni Kod" }, { id: "unut", l: "Kodu Unut" }]
+    : [{ id: "giris", l: "Giriş" }, { id: "sirket", l: "Şirket Kur" }];
+  const anaBtn = { width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700 };
+  const kodKopyala = (k) => { navigator.clipboard?.writeText(k); setKopya(true); setTimeout(() => setKopya(false), 2000); };
 
   return (
     <div style={{ minHeight: "100vh", background: T.navy, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
       <style>{globalCss}</style>
-      <div style={{ marginBottom: 36, textAlign: "center" }}>
+      <div style={{ marginBottom: 28, textAlign: "center" }}>
         <div style={{ width: 64, height: 64, borderRadius: 18, background: T.primary, display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px" }}>
           <Car size={32} color="#fff" strokeWidth={2.2} />
         </div>
         <div style={{ fontSize: 26, fontWeight: 800, color: "#fff" }}>Araç Takip</div>
-        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>Aracının her kuruşunu yönet</div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.6)", marginTop: 4 }}>{mod === "bireysel" ? "Aracının her kuruşunu yönet" : "Filonun her kuruşunu yönet"}</div>
       </div>
       <div style={{ width: "100%", maxWidth: 380 }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 14 }}>
+          {[{ id: "bireysel", l: "Bireysel", ikon: <User size={15} /> }, { id: "kurumsal", l: "Kurumsal Filo", ikon: <Building2 size={15} /> }].map((m) => (
+            <button key={m.id} onClick={() => modDegistir(m.id)} style={{
+              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 7, padding: "12px 8px", borderRadius: 12,
+              background: mod === m.id ? T.primary : "rgba(255,255,255,0.07)",
+              border: `1.5px solid ${mod === m.id ? T.primary : "rgba(255,255,255,0.14)"}`,
+              color: mod === m.id ? "#fff" : "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 700,
+            }}>
+              {m.ikon}{m.l}
+            </button>
+          ))}
+        </div>
         <div style={{ display: "flex", background: "rgba(255,255,255,0.1)", borderRadius: 12, padding: 4, marginBottom: 20 }}>
-          {["giris", "yeni", "unut"].map((s, i) => (
-            <button key={s} onClick={() => { setSekme(s); setHata(""); }} style={{ flex: 1, padding: "9px 6px", borderRadius: 9, fontSize: 13, fontWeight: 600, background: sekme === s ? "#fff" : "transparent", color: sekme === s ? T.navy : "rgba(255,255,255,0.7)" }}>
-              {["Giriş", "Yeni Kod", "Kodu Unut"][i]}
+          {sekmeler.map((s) => (
+            <button key={s.id} onClick={() => { setSekme(s.id); setHata(""); }} style={{ flex: 1, padding: "9px 6px", borderRadius: 9, fontSize: 13, fontWeight: 600, background: sekme === s.id ? "#fff" : "transparent", color: sekme === s.id ? T.navy : "rgba(255,255,255,0.7)" }}>
+              {s.l}
             </button>
           ))}
         </div>
         <div style={{ background: "#fff", borderRadius: 16, padding: 24 }}>
-          {sekme === "giris" && !cihazdaYok && (
+          {mod === "bireysel" && sekme === "giris" && !cihazdaYok && (
             <>
               <Field label="6 Haneli Kodun">
-                <input value={girisKod} onChange={(e) => { setGirisKod(e.target.value.replace(/\D/g, "").slice(0, 6)); setCihazdaYok(false); }} placeholder="123456" maxLength={6} inputMode="numeric"
-                  style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px", color: T.text, fontSize: 24, fontWeight: 700, letterSpacing: "0.2em", textAlign: "center" }} />
+                <input value={girisKod} onChange={(e) => { setGirisKod(e.target.value.replace(/\D/g, "").slice(0, 6)); setCihazdaYok(false); }} placeholder="123456" maxLength={6} inputMode="numeric" style={kodInputStil} />
               </Field>
-              <button onClick={girisYap} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700, marginBottom: 12 }}>Giriş Yap</button>
+              <button onClick={girisYap} style={{ ...anaBtn, marginBottom: 12 }}>Giriş Yap</button>
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                 <div style={{ flex: 1, height: 1, background: T.border }} />
                 <span style={{ fontSize: 11, color: T.textMuted }}>ya da</span>
@@ -571,7 +662,7 @@ function GirisEkrani({ onGiris }) {
               </button>
             </>
           )}
-          {sekme === "giris" && cihazdaYok && (
+          {mod === "bireysel" && sekme === "giris" && cihazdaYok && (
             <>
               <div style={{ textAlign: "center", padding: "6px 0 16px" }}>
                 <div style={{ fontSize: 32, marginBottom: 10 }}>📱</div>
@@ -580,7 +671,7 @@ function GirisEkrani({ onGiris }) {
                   Uygulama verilerini cihaza özel saklar. Başka bir cihazda oluşturduğun veriler otomatik aktarılmaz.
                 </div>
               </div>
-              <button onClick={buKodlaBasla} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
+              <button onClick={buKodlaBasla} style={{ ...anaBtn, fontSize: 14, marginBottom: 10 }}>
                 {girisKod} koduyla bu cihazda başla
               </button>
               <button onClick={() => { setCihazdaYok(false); setGirisKod(""); }} style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, color: T.textSub, borderRadius: 12, padding: 14, fontSize: 14, fontWeight: 600 }}>
@@ -588,24 +679,63 @@ function GirisEkrani({ onGiris }) {
               </button>
             </>
           )}
-          {sekme === "yeni" && (
+          {mod === "bireysel" && sekme === "yeni" && (
             <>
               <div style={{ textAlign: "center", marginBottom: 18 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: T.textSub, marginBottom: 10 }}>SENİN KODUN</div>
                 <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: "0.22em", color: T.primary }}>{yeniKod}</div>
-                <button onClick={() => { navigator.clipboard?.writeText(yeniKod); setKopya(true); setTimeout(() => setKopya(false), 2000); }} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, color: T.textSub, fontSize: 13 }}>
+                <button onClick={() => kodKopyala(yeniKod)} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, color: T.textSub, fontSize: 13 }}>
                   {kopya ? <Check size={14} color={T.success} /> : <Copy size={14} />}{kopya ? "Kopyalandı" : "Kopyala"}
                 </button>
               </div>
               <div style={{ fontSize: 12, color: T.textSub, marginBottom: 16, textAlign: "center", lineHeight: 1.5 }}>Bu kodu kaydet — tekrar gösterilmez. Girişte bu kodu kullanacaksın.</div>
               <Input label="E-posta (opsiyonel, kurtarma için)" value={eposta} onChange={setEposta} placeholder="ornek@email.com" type="email" />
-              <button onClick={hesapOlustur} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700, marginTop: 4 }}>Hesabı Oluştur</button>
+              <button onClick={hesapOlustur} style={{ ...anaBtn, marginTop: 4 }}>Hesabı Oluştur</button>
             </>
           )}
-          {sekme === "unut" && (
+          {mod === "bireysel" && sekme === "unut" && (
             <>
               <Input label="E-posta Adresin" value={eposta} onChange={setEposta} placeholder="ornek@email.com" type="email" />
               <button onClick={async () => { const k = await stGet(`email:${eposta.trim().toLowerCase()}`); if (k) alert(`Kodun: ${k}`); else setHata("Bu e-posta ile kayıtlı kod yok."); }} style={{ width: "100%", background: T.bg, border: `1px solid ${T.border}`, color: T.text, borderRadius: 12, padding: 14, fontSize: 15, fontWeight: 700 }}>Kodumu Göster</button>
+            </>
+          )}
+          {mod === "kurumsal" && sekme === "giris" && (
+            <>
+              <Field label="Rolün">
+                <div style={{ display: "flex", gap: 8 }}>
+                  {[{ id: "admin", l: "Yönetici", ikon: <Shield size={15} /> }, { id: "surucu", l: "Sürücü", ikon: <User size={15} /> }].map((r) => (
+                    <button key={r.id} onClick={() => { setRol(r.id); setHata(""); }} style={{
+                      flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6, padding: "11px 8px", borderRadius: 10,
+                      border: `1.5px solid ${rol === r.id ? T.primary : T.border}`,
+                      background: rol === r.id ? T.primaryDim : T.card,
+                      color: rol === r.id ? T.primary : T.textSub, fontSize: 14, fontWeight: rol === r.id ? 700 : 500,
+                    }}>
+                      {r.ikon}{r.l}
+                    </button>
+                  ))}
+                </div>
+              </Field>
+              <Field label={rol === "admin" ? "Şirket Kodu" : "Sürücü Kodu"}>
+                <input value={filoKod} onChange={(e) => { setFiloKod(e.target.value.replace(/\D/g, "").slice(0, 6)); setHata(""); }} placeholder="123456" maxLength={6} inputMode="numeric" style={kodInputStil} />
+              </Field>
+              <button onClick={kurumsalGiris} style={anaBtn}>Giriş Yap</button>
+              <div style={{ fontSize: 12, color: T.textMuted, marginTop: 14, textAlign: "center", lineHeight: 1.5 }}>
+                {rol === "admin" ? "Şirketin yoksa \"Şirket Kur\" sekmesinden yeni filo oluştur." : "Sürücü kodunu filo yöneticin panelden üretip sana verir."}
+              </div>
+            </>
+          )}
+          {mod === "kurumsal" && sekme === "sirket" && (
+            <>
+              <div style={{ textAlign: "center", marginBottom: 18 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: T.textSub, marginBottom: 10 }}>ŞİRKET KODUN</div>
+                <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: "0.22em", color: T.primary }}>{yeniSirketKodu}</div>
+                <button onClick={() => kodKopyala(yeniSirketKodu)} style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, color: T.textSub, fontSize: 13 }}>
+                  {kopya ? <Check size={14} color={T.success} /> : <Copy size={14} />}{kopya ? "Kopyalandı" : "Kopyala"}
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: T.textSub, marginBottom: 16, textAlign: "center", lineHeight: 1.5 }}>Yönetici girişinde bu kodu kullanacaksın. Sürücü kodlarını filo panelinden üreteceksin.</div>
+              <Input label="Şirket Adı" value={sirketAd} onChange={setSirketAd} placeholder="Örn. Yılmaz Lojistik" />
+              <button onClick={sirketOlustur} style={{ ...anaBtn, marginTop: 4 }}>Şirketi Oluştur</button>
             </>
           )}
           {hata && <div style={{ marginTop: 14, fontSize: 13, color: T.danger, textAlign: "center" }}>{hata}</div>}
@@ -638,24 +768,36 @@ function bosAracForm() {
 // ANA UYGULAMA — Drivvo yapısı: tek aktif araç + alt navigasyon
 // ═════════════════════════════════════════════════════════════
 export default function App() {
-  const [kod, setKod] = useState(null);
+  const [oturum, setOturum] = useState(null);
   const [veri, setVeri] = useState(bosVeri());
   const [aktifAracId, setAktifAracId] = useState(null);
-  const [ekran, setEkran] = useState("zaman");      // zaman | finansal | yakit | bilgi
-  const [modal, setModal] = useState(null);         // fab | arac | dolum | masraf | servis | aracSecici
+  const [ekran, setEkran] = useState("zaman");      // filo | suruculer | zaman | finansal | yakit | bilgi
+  const [modal, setModal] = useState(null);         // fab | arac | dolum | masraf | servis | aracSecici | surucu | profil | filoHesap
   const [editKayit, setEditKayit] = useState(null);
   const [editArac, setEditArac] = useState(null);
+  const [editSurucu, setEditSurucu] = useState(null);
   const genis = useGenis();
   const [cekme, setCekme] = useState(false);
 
-  const aktifArac = veri.araclar.find((a) => a.id === aktifAracId) || veri.araclar[0] || null;
+  const kurumsal = oturum?.tur === "kurumsal";
+  const yonetici = kurumsal && oturum.rol === "admin";
+  const surucuMu = kurumsal && oturum.rol === "surucu";
+  const suruculer = veri.suruculer || [];
+  const aktifSurucu = surucuMu ? suruculer.find((s) => s.id === oturum.surucuId) || null : null;
+  const aktifArac = surucuMu
+    ? veri.araclar.find((a) => a.id === aktifSurucu?.atanmisAracId) || null
+    : veri.araclar.find((a) => a.id === aktifAracId) || veri.araclar[0] || null;
 
-  async function kaydet(yeniVeri) { setVeri(yeniVeri); await stSet(`data:${kod}`, yeniVeri); }
-  function girisYap(k, d) { setKod(k); setVeri(d); setAktifAracId(d.araclar[0]?.id || null); }
-  function cikis() { setKod(null); setVeri(bosVeri()); setAktifAracId(null); setEkran("zaman"); }
+  async function kaydet(yeniVeri) { setVeri(yeniVeri); await stSet(oturumAnahtari(oturum), yeniVeri); }
+  function girisYap(o, d) {
+    setOturum(o); setVeri(d);
+    setAktifAracId(d.araclar[0]?.id || null);
+    setEkran(o.tur === "kurumsal" && o.rol === "admin" ? "filo" : "zaman");
+  }
+  function cikis() { setOturum(null); setVeri(bosVeri()); setAktifAracId(null); setEkran("zaman"); setModal(null); }
   async function profilGuncelle(yeniVeri) {
     if (yeniVeri.eposta && yeniVeri.eposta !== veri.eposta) {
-      await stSet(`email:${yeniVeri.eposta.toLowerCase()}`, kod);
+      await stSet(`email:${yeniVeri.eposta.toLowerCase()}`, oturum.kod);
     }
     await kaydet(yeniVeri);
   }
@@ -671,9 +813,27 @@ export default function App() {
     if (!confirm("Bu aracı ve tüm kayıtlarını sil?")) return;
     const { [id]: _, ...ds } = veri.doldurmalar; const { [id]: __, ...ms } = veri.masraflar;
     const kalan = veri.araclar.filter((a) => a.id !== id);
-    await kaydet({ ...veri, araclar: kalan, doldurmalar: ds, masraflar: ms });
+    const yeniSuruculer = kurumsal ? suruculer.map((s) => (s.atanmisAracId === id ? { ...s, atanmisAracId: null } : s)) : suruculer;
+    await kaydet({ ...veri, araclar: kalan, doldurmalar: ds, masraflar: ms, ...(kurumsal ? { suruculer: yeniSuruculer } : {}) });
     if (aktifAracId === id) setAktifAracId(kalan[0]?.id || null);
+    if (yonetici) setEkran("filo");
     setModal(null); setEditArac(null);
+  }
+
+  async function surucuKaydet(form) {
+    const kod = editSurucu?.kod || kodUret();
+    const kayit = { id: editSurucu?.id || yeniId(), kod, ad: form.ad, telefon: form.telefon || null, atanmisAracId: form.atanmisAracId || null };
+    const liste = editSurucu ? suruculer.map((s) => (s.id === editSurucu.id ? kayit : s)) : [...suruculer, kayit];
+    await stSet(`surucu:${kod}`, { sirketKodu: oturum.sirketKodu, surucuId: kayit.id });
+    await kaydet({ ...veri, suruculer: liste });
+    setEkran("suruculer");
+    setModal(null); setEditSurucu(null);
+  }
+  async function surucuSil(s) {
+    if (!confirm(`${s.ad} sürücüsünü sil?`)) return;
+    await stSet(`surucu:${s.kod}`, null);
+    await kaydet({ ...veri, suruculer: suruculer.filter((x) => x.id !== s.id) });
+    setModal(null); setEditSurucu(null);
   }
 
   async function dolumKaydet(form) {
@@ -705,10 +865,23 @@ export default function App() {
     await kaydet({ ...veri, masraflar: { ...veri.masraflar, [aktifArac.id]: (veri.masraflar[aktifArac.id] || []).filter((m) => m.id !== id) } });
   }
 
-  if (!kod) return <GirisEkrani onGiris={girisYap} />;
+  if (!oturum) return <GirisEkrani onGiris={girisYap} />;
 
-  // Hiç araç yoksa karşılama
-  if (!aktifArac) {
+  if (surucuMu && !aktifArac) {
+    return (
+      <div style={{ minHeight: "100vh", background: T.bg, maxWidth: 480, margin: "0 auto" }}>
+        <style>{globalCss}</style>
+        <div style={{ background: T.navy, padding: "52px 20px 20px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: "#fff" }}>{veri.sirket?.ad || "Filo"}</div>
+          <button onClick={cikis} style={{ padding: "7px 14px", background: "rgba(255,255,255,0.12)", borderRadius: 20, fontSize: 12, color: "#fff" }}>Çıkış</button>
+        </div>
+        <BosDurum ikon={<Car size={32} color={T.textMuted} />} başlık="Henüz araç atanmadı"
+          açıklama={`Merhaba ${aktifSurucu?.ad || ""}. Filo yöneticin sana bir araç atadığında kayıt girmeye başlayabilirsin.`} />
+      </div>
+    );
+  }
+
+  if (!kurumsal && !aktifArac) {
     return (
       <div style={{ minHeight: "100vh", background: T.bg, maxWidth: 480, margin: "0 auto" }}>
         <style>{globalCss}</style>
@@ -727,17 +900,38 @@ export default function App() {
     );
   }
 
-  const sk = sonKm(veri.doldurmalar, aktifArac.id);
-  const uw = uyarılar(aktifArac, sk);
-  const dolumlar = veri.doldurmalar[aktifArac.id] || [];
-  const masraflar = veri.masraflar[aktifArac.id] || [];
+  const filoGorunumu = yonetici && (!aktifArac || ekran === "filo" || ekran === "suruculer");
+  const gorunum = filoGorunumu ? (ekran === "suruculer" ? "suruculer" : "filo") : ekran;
+  const sk = aktifArac ? sonKm(veri.doldurmalar, aktifArac.id) : null;
+  const uw = aktifArac ? uyarılar(aktifArac, sk) : [];
+  const dolumlar = aktifArac ? veri.doldurmalar[aktifArac.id] || [] : [];
+  const masraflar = aktifArac ? veri.masraflar[aktifArac.id] || [] : [];
   const buAy = new Date().toISOString().slice(0, 7);
-  const aylikYakit = dolumlar.filter((d) => d.tarih.startsWith(buAy)).reduce((s, d) => s + d.tutar, 0);
-  const aylikMasraf = masraflar.filter((m) => m.tip === "masraf" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
-  const aylikServis = masraflar.filter((m) => m.tip === "servis" && m.tarih.startsWith(buAy)).reduce((s, m) => s + m.tutar, 0);
+  const ay = filoGorunumu
+    ? aylikToplam(Object.values(veri.doldurmalar).flat(), Object.values(veri.masraflar).flat(), buAy)
+    : aylikToplam(dolumlar, masraflar, buAy);
 
-  const EKRAN_ADI = { zaman: "Aktivite Akışı", finansal: "Finansal Özet", yakit: "Yakıt Takibi", bilgi: "Araç Bilgisi" };
-  const menuProps = { ekran, setEkran, aktifArac, araclar: veri.araclar, setAktifAracId, setModal, setEditArac, setEditKayit, cikis, kod };
+  const EKRAN_ADI = { filo: "Filo Paneli", suruculer: "Sürücüler", zaman: "Aktivite Akışı", finansal: "Finansal Özet", yakit: "Yakıt Takibi", bilgi: "Araç Bilgisi" };
+  const aracSekmeleri = [
+    { id: "zaman", l: "Akış" },
+    ...(surucuMu ? [] : [{ id: "finansal", l: "Finansal" }]),
+    { id: "yakit", l: "Yakıt" },
+    { id: "bilgi", l: "Bilgi" },
+  ];
+  const yeniSurucu = () => { setEditSurucu(null); setModal("surucu"); };
+  const yeniArac = () => { setEditArac(null); setModal("arac"); };
+  const fabItems = filoGorunumu
+    ? [
+        { l: "Araç Ekle", ikon: <Car size={20} color="#fff" />, renk: T.navy, cb: yeniArac },
+        { l: "Sürücü Ekle", ikon: <UserPlus size={20} color="#fff" />, renk: T.servis, cb: yeniSurucu },
+      ]
+    : [
+        ...(surucuMu ? [] : [{ l: "Araç Ekle", ikon: <Car size={20} color="#fff" />, renk: T.navy, cb: yeniArac }]),
+        { l: "Dolum", ikon: <Fuel size={20} color="#fff" />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); } },
+        { l: "Masraf", ikon: <Receipt size={20} color="#fff" />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); } },
+        { l: "Servis", ikon: <Wrench size={20} color="#fff" />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); } },
+      ];
+  const menuProps = { gorunum, setEkran, aktifArac, setModal, setEditArac, setEditKayit, setEditSurucu, cikis, kurumsal, rol: oturum.rol, sirket: veri.sirket, kod: surucuMu ? aktifSurucu?.kod : kurumsal ? oturum.sirketKodu : oturum.kod };
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg }}>
@@ -768,14 +962,17 @@ export default function App() {
         {/* DESKTOP TOP BAR */}
         {genis && (
           <div style={{ background: T.card, borderBottom: `1px solid ${T.border}`, padding: "0 32px", display: "flex", alignItems: "center", height: 64, position: "sticky", top: 0, zIndex: 50 }}>
-            <div style={{ fontSize: 17, fontWeight: 800, color: T.text }}>{EKRAN_ADI[ekran]}</div>
+            <div>
+              <div style={{ fontSize: 17, fontWeight: 800, color: T.text }}>{EKRAN_ADI[gorunum]}</div>
+              {kurumsal && !filoGorunumu && aktifArac && <div style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>{aktifArac.marka} {aktifArac.model} · {aktifArac.plaka || tl(aktifArac.tasitTipi)}</div>}
+            </div>
             <div style={{ flex: 1 }} />
-            {(aylikYakit + aylikMasraf + aylikServis) > 0 && (
+            {(ay.yakit + ay.masraf + ay.servis) > 0 && (
               <div style={{ display: "flex", gap: 24, marginRight: 24 }}>
                 {[
-                  { l: "BU AY YAKIT", v: fmtTRY(aylikYakit), c: T.yakit },
-                  { l: "BU AY MASRAF", v: fmtTRY(aylikMasraf), c: T.masraf },
-                  { l: "BU AY SERVİS", v: fmtTRY(aylikServis), c: T.servis },
+                  { l: "BU AY YAKIT", v: fmtTRY(ay.yakit), c: T.yakit },
+                  { l: "BU AY MASRAF", v: fmtTRY(ay.masraf), c: T.masraf },
+                  { l: "BU AY SERVİS", v: fmtTRY(ay.servis), c: T.servis },
                 ].map((s) => (
                   <div key={s.l} style={{ textAlign: "right" }}>
                     <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
@@ -785,11 +982,17 @@ export default function App() {
               </div>
             )}
             <div style={{ display: "flex", gap: 8 }}>
-              {[
-                { l: "Dolum", ikon: <Fuel size={14} />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); } },
-                { l: "Masraf", ikon: <Receipt size={14} />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); } },
-                { l: "Servis", ikon: <Wrench size={14} />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); } },
-              ].map((b) => (
+              {(filoGorunumu
+                ? [
+                    { l: "Araç", ikon: <Car size={14} />, renk: T.navy, cb: yeniArac },
+                    { l: "Sürücü", ikon: <UserPlus size={14} />, renk: T.servis, cb: yeniSurucu },
+                  ]
+                : [
+                    { l: "Dolum", ikon: <Fuel size={14} />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); } },
+                    { l: "Masraf", ikon: <Receipt size={14} />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); } },
+                    { l: "Servis", ikon: <Wrench size={14} />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); } },
+                  ]
+              ).map((b) => (
                 <button key={b.l} onClick={b.cb} style={{ padding: "8px 14px", background: b.renk, color: "#fff", borderRadius: 9, fontSize: 13, fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
                   {b.ikon} {b.l}
                 </button>
@@ -805,34 +1008,40 @@ export default function App() {
               <button onClick={() => setCekme(true)} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <Menu size={18} color="#fff" />
               </button>
-              <button onClick={() => setModal("aracSecici")} style={{ display: "flex", alignItems: "center", gap: 10, color: "#fff", flex: 1, minWidth: 0 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
-                  {aktifArac.foto ? <img src={aktifArac.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <TasitIkonu tip={aktifArac.tasitTipi} size={18} color="#fff" />}
+              {filoGorunumu ? (
+                <div style={{ flex: 1, minWidth: 0, color: "#fff" }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{veri.sirket?.ad}</div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{veri.araclar.length} araç · {suruculer.length} sürücü</div>
                 </div>
-                <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>{aktifArac.marka} {aktifArac.model} <ChevronDown size={15} /></div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{aktifArac.plaka || tl(aktifArac.tasitTipi)}{sk ? ` · ${fmtSayi(sk, 0)} km` : ""}</div>
-                </div>
-              </button>
+              ) : (
+                <button onClick={surucuMu ? undefined : () => setModal("aracSecici")} style={{ display: "flex", alignItems: "center", gap: 10, color: "#fff", flex: 1, minWidth: 0, cursor: surucuMu ? "default" : "pointer" }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.14)", display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                    {aktifArac.foto ? <img src={aktifArac.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <TasitIkonu tip={aktifArac.tasitTipi} size={18} color="#fff" />}
+                  </div>
+                  <div style={{ textAlign: "left", minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", gap: 5 }}>{aktifArac.marka} {aktifArac.model} {!surucuMu && <ChevronDown size={15} />}</div>
+                    <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>{aktifArac.plaka || tl(aktifArac.tasitTipi)}{sk ? ` · ${fmtSayi(sk, 0)} km` : ""}</div>
+                  </div>
+                </button>
+              )}
               <div style={{ display: "flex", gap: 6 }}>
-                <button onClick={() => { setEditArac(aktifArac); setModal("arac"); }} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={16} color="#fff" /></button>
+                {!surucuMu && !filoGorunumu && (
+                  <button onClick={() => { setEditArac(aktifArac); setModal("arac"); }} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={16} color="#fff" /></button>
+                )}
                 <button onClick={cikis} style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,0.12)", display: "flex", alignItems: "center", justifyContent: "center" }}><X size={16} color="#fff" /></button>
               </div>
             </div>
             <div style={{ display: "flex", padding: "4px 8px 0" }}>
-              {[
-                { id: "zaman", l: "Akış" }, { id: "finansal", l: "Finansal" },
-                { id: "yakit", l: "Yakıt" }, { id: "bilgi", l: "Bilgi" },
-              ].map((t) => (
-                <button key={t.id} onClick={() => setEkran(t.id)} style={{ flex: 1, padding: "9px 4px", margin: "0 2px", fontSize: 13, fontWeight: 600, color: ekran === t.id ? "#fff" : "rgba(255,255,255,0.5)", background: ekran === t.id ? "rgba(255,255,255,0.15)" : "transparent", borderRadius: "8px 8px 0 0", transition: "all 0.18s" }}>{t.l}</button>
+              {(filoGorunumu ? [{ id: "filo", l: "Filo" }, { id: "suruculer", l: "Sürücüler" }] : aracSekmeleri).map((t) => (
+                <button key={t.id} onClick={() => setEkran(t.id)} style={{ flex: 1, padding: "9px 4px", margin: "0 2px", fontSize: 13, fontWeight: 600, color: gorunum === t.id ? "#fff" : "rgba(255,255,255,0.5)", background: gorunum === t.id ? "rgba(255,255,255,0.15)" : "transparent", borderRadius: "8px 8px 0 0", transition: "all 0.18s" }}>{t.l}</button>
               ))}
             </div>
-            {(aylikYakit + aylikMasraf + aylikServis) > 0 && (
+            {(ay.yakit + ay.masraf + ay.servis) > 0 && (
               <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px 14px" }}>
                 {[
-                  { l: "Yakıt", v: fmtTRY(aylikYakit) },
-                  { l: "Masraf", v: fmtTRY(aylikMasraf) },
-                  { l: "Servis", v: fmtTRY(aylikServis) },
+                  { l: "Yakıt", v: fmtTRY(ay.yakit) },
+                  { l: "Masraf", v: fmtTRY(ay.masraf) },
+                  { l: "Servis", v: fmtTRY(ay.servis) },
                 ].map((s, i) => (
                   <div key={i} style={{ flex: 1, textAlign: "center", borderRight: i < 2 ? "1px solid rgba(255,255,255,0.1)" : "none" }}>
                     <div style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{s.v}</div>
@@ -846,7 +1055,7 @@ export default function App() {
 
         {/* ── İÇERİK ── */}
         <div style={{ padding: genis ? "28px 32px 60px" : "16px 16px 96px", flex: genis ? 1 : undefined }}>
-          {uw.length > 0 && ekran !== "bilgi" && (
+          {uw.length > 0 && !filoGorunumu && gorunum !== "bilgi" && (
             <div style={{ marginBottom: 16, background: T.card, borderRadius: 14, overflow: "hidden", border: `1px solid ${T.border}` }}>
               <div style={{ padding: "10px 14px", background: uw.some((u) => u.tip === "gecmis") ? T.dangerDim : T.warningDim, display: "flex", alignItems: "center", gap: 8 }}>
                 <Bell size={15} color={uw.some((u) => u.tip === "gecmis") ? T.danger : T.warning} />
@@ -861,12 +1070,14 @@ export default function App() {
               </div>
             </div>
           )}
-          {ekran === "zaman" && <ZamanCizelgesi dolumlar={dolumlar} masraflar={masraflar}
+          {gorunum === "filo" && <FiloEkran veri={veri} onAracSec={(id) => { setAktifAracId(id); setEkran("zaman"); }} onAracEkle={yeniArac} />}
+          {gorunum === "suruculer" && <SurucularEkran veri={veri} onEkle={yeniSurucu} onDuzenle={(s) => { setEditSurucu(s); setModal("surucu"); }} />}
+          {gorunum === "zaman" && <ZamanCizelgesi dolumlar={dolumlar} masraflar={masraflar}
             onDolumDuzenle={(d) => { setEditKayit(d); setModal("dolum"); }} onDolumSil={dolumSil}
             onMasrafDuzenle={(m) => { setEditKayit(m); setModal(m.tip === "servis" ? "servis" : "masraf"); }} onMasrafSil={masrafSil} />}
-          {ekran === "finansal" && <FinansalEkran arac={aktifArac} dolumlar={dolumlar} masraflar={masraflar} />}
-          {ekran === "yakit" && <YakitEkran dolumlar={dolumlar} />}
-          {ekran === "bilgi" && <BilgiEkran arac={aktifArac} sk={sk} uyarilar={uw} />}
+          {gorunum === "finansal" && <FinansalEkran arac={aktifArac} dolumlar={dolumlar} masraflar={masraflar} />}
+          {gorunum === "yakit" && <YakitEkran dolumlar={dolumlar} />}
+          {gorunum === "bilgi" && <BilgiEkran arac={aktifArac} sk={sk} uyarilar={uw} />}
         </div>
 
         {/* FAB — sadece mobil */}
@@ -882,13 +1093,8 @@ export default function App() {
         <div style={{ position: "fixed", inset: 0, zIndex: 90 }} onClick={() => setModal(null)}>
           <div style={{ position: "absolute", inset: 0, background: "rgba(19,41,61,0.55)" }} />
           <div style={{ position: "absolute", right: 22, bottom: 92, display: "flex", flexDirection: "column", gap: 10, alignItems: "flex-end" }} onClick={(e) => e.stopPropagation()}>
-            {[
-              { l: "Araç Ekle", ikon: <Car size={20} color="#fff" />, renk: T.navy, cb: () => { setEditArac(null); setModal("arac"); } },
-              { l: "Dolum", ikon: <Fuel size={20} color="#fff" />, renk: T.yakit, cb: () => { setEditKayit(null); setModal("dolum"); } },
-              { l: "Masraf", ikon: <Receipt size={20} color="#fff" />, renk: T.masraf, cb: () => { setEditKayit(null); setModal("masraf"); } },
-              { l: "Servis", ikon: <Wrench size={20} color="#fff" />, renk: T.servis, cb: () => { setEditKayit(null); setModal("servis"); } },
-            ].map((it, i) => (
-              <button key={i} onClick={it.cb} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            {fabItems.map((it) => (
+              <button key={it.l} onClick={it.cb} style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <span style={{ fontSize: 14, fontWeight: 600, color: "#fff", background: "rgba(0,0,0,0.3)", padding: "6px 12px", borderRadius: 8 }}>{it.l}</span>
                 <span style={{ width: 50, height: 50, borderRadius: 25, background: it.renk, display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 3px 12px rgba(0,0,0,0.3)" }}>{it.ikon}</span>
               </button>
@@ -901,13 +1107,15 @@ export default function App() {
       )}
 
       {/* ── MODALLAR ── */}
-      {modal === "aracSecici" && <AracSecici araclar={veri.araclar} aktifId={aktifArac.id} doldurmalar={veri.doldurmalar}
-        onSec={(id) => { setAktifAracId(id); setModal(null); }} onYeni={() => { setEditArac(null); setModal("arac"); }} onKapat={() => setModal(null)} />}
+      {modal === "aracSecici" && <AracSecici araclar={veri.araclar} aktifId={aktifArac?.id} doldurmalar={veri.doldurmalar}
+        onSec={(id) => { setAktifAracId(id); setModal(null); }} onYeni={yeniArac} onKapat={() => setModal(null)} />}
       {modal === "arac" && <AracFormModal mevcut={editArac} onKaydet={aracKaydet} onKapat={() => { setModal(null); setEditArac(null); }} onSil={editArac ? () => aracSil(editArac.id) : null} />}
+      {modal === "surucu" && <SurucuFormModal mevcut={editSurucu} araclar={veri.araclar} suruculer={suruculer} onKaydet={surucuKaydet} onKapat={() => { setModal(null); setEditSurucu(null); }} onSil={editSurucu ? () => surucuSil(editSurucu) : null} />}
       {modal === "dolum" && <DolumFormModal mevcut={editKayit} yakitListesi={aktifArac.yakitTipleri || [aktifArac.anaYakitTipi || "benzin"]} onKaydet={dolumKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} apiKey={veri.ajanApiKey} />}
       {modal === "masraf" && <MasrafFormModal mevcut={editKayit} tip="masraf" onKaydet={masrafKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
       {modal === "servis" && <MasrafFormModal mevcut={editKayit} tip="servis" onKaydet={masrafKaydet} onKapat={() => { setModal(null); setEditKayit(null); }} />}
-      {modal === "profil" && <ProfilModal kod={kod} veri={veri} onKapat={() => setModal(null)} onGuncelle={profilGuncelle} onCikis={cikis} />}
+      {modal === "profil" && <ProfilModal kod={oturum.kod} veri={veri} onKapat={() => setModal(null)} onGuncelle={profilGuncelle} onCikis={cikis} />}
+      {modal === "filoHesap" && <FiloHesapModal sirket={veri.sirket} rol={oturum.rol} surucu={aktifSurucu} arac={aktifArac} onKapat={() => setModal(null)} onCikis={cikis} />}
     </div>
   );
 }
@@ -1683,6 +1891,272 @@ function MasrafFormModal({ mevcut, tip, onKaydet, onKapat }) {
       </div>
       {servisMi && <NumberInput label="Km (opsiyonel)" value={form.km} onChange={(v) => set("km", v)} placeholder="45.000" />}
       <FotoAlani etiket="Fatura / fiş" gorsel={form.faturaGorseli} onSec={(e) => sıkıstir(e, (v) => set("faturaGorseli", v))} onKaldir={() => set("faturaGorseli", null)} />
+    </Modal>
+  );
+}
+
+
+
+// ═════════════════════════════════════════════════════════════
+// EKRAN: FİLO PANELİ (yönetici ana ekranı)
+// ═════════════════════════════════════════════════════════════
+function FiloEkran({ veri, onAracSec, onAracEkle }) {
+  const buAy = new Date().toISOString().slice(0, 7);
+  const suruculer = veri.suruculer || [];
+  const ay = aylikToplam(Object.values(veri.doldurmalar).flat(), Object.values(veri.masraflar).flat(), buAy);
+  const toplam = ay.yakit + ay.masraf + ay.servis;
+  const kritik = veri.araclar.flatMap((a) => uyarılar(a, sonKm(veri.doldurmalar, a.id)).map((u) => ({ ...u, arac: a })));
+  const atanmisSurucu = (aracId) => suruculer.find((s) => s.atanmisAracId === aracId);
+
+  if (!veri.araclar.length) {
+    return (
+      <div>
+        <BosDurum ikon={<Car size={32} color={T.textMuted} />} başlık="Filonda henüz araç yok"
+          açıklama="İlk aracını ekle, ardından sürücü tanımlayıp araç ata." />
+        <div style={{ maxWidth: 320, margin: "0 auto" }}>
+          <button onClick={onAracEkle} style={{ width: "100%", background: T.primary, color: "#fff", borderRadius: 12, padding: 15, fontSize: 15, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+            <Plus size={20} strokeWidth={2.4} /> Araç ekle
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: 10, marginBottom: 16 }}>
+        <Metrik etiket="ARAÇ" değer={veri.araclar.length} alt={`${suruculer.length} sürücü`} />
+        <Metrik etiket="BU AY TOPLAM" değer={fmtTRY(toplam)} renk={T.primary} />
+        <Metrik etiket="BU AY YAKIT" değer={fmtTRY(ay.yakit)} renk={T.yakit} />
+        <Metrik etiket="AÇIK UYARI" değer={kritik.length} renk={kritik.length ? T.danger : T.success} alt={kritik.length ? "ilgilenilmeli" : "her şey yolunda"} />
+      </div>
+
+      {kritik.length > 0 && (
+        <div style={{ marginBottom: 16, background: T.card, borderRadius: 14, overflow: "hidden", border: `1px solid ${T.border}` }}>
+          <div style={{ padding: "10px 14px", background: kritik.some((u) => u.tip === "gecmis") ? T.dangerDim : T.warningDim, display: "flex", alignItems: "center", gap: 8 }}>
+            <Bell size={15} color={kritik.some((u) => u.tip === "gecmis") ? T.danger : T.warning} />
+            <span style={{ fontSize: 13, fontWeight: 700, color: kritik.some((u) => u.tip === "gecmis") ? T.danger : T.warning }}>{kritik.length} kritik uyarı</span>
+          </div>
+          <div style={{ padding: "4px 14px 10px" }}>
+            {kritik.slice(0, 8).map((u, i) => (
+              <button key={i} onClick={() => onAracSec(u.arac.id)} style={{ width: "100%", textAlign: "left", fontSize: 13, color: u.tip === "gecmis" ? T.danger : T.warning, padding: "5px 0", display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ width: 5, height: 5, borderRadius: 3, background: "currentColor", flexShrink: 0 }} />
+                <span style={{ fontWeight: 700 }}>{u.arac.plaka || u.arac.marka}</span>
+                <span style={{ color: T.textSub }}>{u.m}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: 12 }}>
+        {veri.araclar.map((a) => {
+          const sk = sonKm(veri.doldurmalar, a.id);
+          const aAy = aylikToplam(veri.doldurmalar[a.id] || [], veri.masraflar[a.id] || [], buAy);
+          const aToplam = aAy.yakit + aAy.masraf + aAy.servis;
+          const uyari = uyarılar(a, sk);
+          const s = atanmisSurucu(a.id);
+          return (
+            <button key={a.id} className="ct" onClick={() => onAracSec(a.id)} style={{ textAlign: "left", background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center", overflow: "hidden", flexShrink: 0 }}>
+                  {a.foto ? <img src={a.foto} style={{ width: "100%", height: "100%", objectFit: "cover" }} /> : <TasitIkonu tip={a.tasitTipi} size={22} color={T.textMuted} />}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.marka} {a.model}</div>
+                  <div style={{ fontSize: 12, color: T.textSub }}>{a.plaka || tl(a.tasitTipi)}{sk ? ` · ${fmtSayi(sk, 0)} km` : ""}</div>
+                </div>
+                {uyari.length > 0 && (
+                  <span style={{ display: "flex", alignItems: "center", gap: 3, fontSize: 11, fontWeight: 700, color: uyari.some((u) => u.tip === "gecmis") ? T.danger : T.warning, background: uyari.some((u) => u.tip === "gecmis") ? T.dangerDim : T.warningDim, padding: "3px 7px", borderRadius: 7 }}>
+                    <AlertTriangle size={11} />{uyari.length}
+                  </span>
+                )}
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: s ? T.text : T.textMuted }}>
+                <User size={13} color={s ? T.servis : T.textMuted} />
+                {s ? s.ad : "Sürücü atanmadı"}
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${T.borderLight}`, paddingTop: 9 }}>
+                <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>BU AY</span>
+                <span style={{ fontSize: 15, fontWeight: 800, color: aToplam ? T.text : T.textMuted }}>{aToplam ? fmtTRY(aToplam) : "—"}</span>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// EKRAN: SÜRÜCÜLER (yönetici)
+// ═════════════════════════════════════════════════════════════
+function SurucularEkran({ veri, onEkle, onDuzenle }) {
+  const [kopyalanan, setKopyalanan] = useState(null);
+  const buAy = new Date().toISOString().slice(0, 7);
+  const suruculer = veri.suruculer || [];
+
+  function kopyala(kod) {
+    navigator.clipboard?.writeText(kod);
+    setKopyalanan(kod);
+    setTimeout(() => setKopyalanan(null), 2000);
+  }
+
+  return (
+    <div>
+      <button onClick={onEkle} style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, padding: 14, borderRadius: 14, background: T.primaryDim, color: T.primary, fontSize: 15, fontWeight: 700, marginBottom: 14 }}>
+        <UserPlus size={19} strokeWidth={2.3} /> Sürücü ekle
+      </button>
+
+      {!suruculer.length ? (
+        <BosDurum ikon={<Users size={32} color={T.textMuted} />} başlık="Henüz sürücü yok"
+          açıklama="Sürücü ekle, araç ata ve ürettiğin kodu paylaş — sürücü kendi telefonundan kayıt girsin." />
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
+          {suruculer.map((s) => {
+            const arac = veri.araclar.find((a) => a.id === s.atanmisAracId);
+            const sAy = arac ? aylikToplam(veri.doldurmalar[arac.id] || [], veri.masraflar[arac.id] || [], buAy) : null;
+            const sToplam = sAy ? sAy.yakit + sAy.masraf + sAy.servis : 0;
+            return (
+              <div key={s.id} style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 11, marginBottom: 12 }}>
+                  <div style={{ width: 42, height: 42, borderRadius: 21, background: T.primaryDim, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <User size={20} color={T.primary} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: T.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.ad}</div>
+                    {s.telefon && <div style={{ fontSize: 12, color: T.textSub, display: "flex", alignItems: "center", gap: 4 }}><Phone size={11} />{s.telefon}</div>}
+                  </div>
+                  <button onClick={() => onDuzenle(s)} style={{ width: 32, height: 32, borderRadius: 10, background: T.bg, display: "flex", alignItems: "center", justifyContent: "center" }}><Pencil size={15} color={T.textSub} /></button>
+                </div>
+
+                <button onClick={() => kopyala(s.kod)} style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, background: T.bg, borderRadius: 10, padding: "9px 12px", marginBottom: 10 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: T.textMuted, letterSpacing: "0.05em" }}>SÜRÜCÜ KODU</span>
+                  <span style={{ flex: 1, textAlign: "right", fontSize: 16, fontWeight: 800, color: T.primary, letterSpacing: "0.14em" }}>{s.kod}</span>
+                  {kopyalanan === s.kod ? <Check size={15} color={T.success} /> : <Copy size={15} color={T.textMuted} />}
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: arac ? T.text : T.textMuted, marginBottom: 10 }}>
+                  {arac ? <TasitIkonu tip={arac.tasitTipi} size={15} color={T.textSub} /> : <Car size={15} color={T.textMuted} />}
+                  {arac ? `${arac.marka} ${arac.model} · ${arac.plaka || tl(arac.tasitTipi)}` : "Araç atanmadı"}
+                </div>
+
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: `1px solid ${T.borderLight}`, paddingTop: 9 }}>
+                  <span style={{ fontSize: 11, color: T.textMuted, fontWeight: 600 }}>BU AY MALİYET</span>
+                  <span style={{ fontSize: 15, fontWeight: 800, color: sToplam ? T.text : T.textMuted }}>{sToplam ? fmtTRY(sToplam) : "—"}</span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// SÜRÜCÜ FORM MODALI
+// ═════════════════════════════════════════════════════════════
+function SurucuFormModal({ mevcut, araclar, suruculer, onKaydet, onKapat, onSil }) {
+  const [ad, setAd] = useState(mevcut?.ad || "");
+  const [telefon, setTelefon] = useState(mevcut?.telefon || "");
+  const [atanmisAracId, setAtanmisAracId] = useState(mevcut?.atanmisAracId || "");
+  const [hata, setHata] = useState("");
+
+  function kaydet() {
+    if (!ad.trim()) { setHata("Sürücü adı zorunlu."); return; }
+    onKaydet({ ad: ad.trim(), telefon: telefon.trim(), atanmisAracId: atanmisAracId || null });
+  }
+
+  const baskaSurucu = (aracId) => suruculer.find((s) => s.atanmisAracId === aracId && s.id !== mevcut?.id);
+
+  return (
+    <Modal başlık={mevcut ? "Sürücüyü Düzenle" : "Yeni Sürücü"} onKapat={onKapat} yükseklik="85vh"
+      footer={<ModalFooter onKapat={onKapat} onKaydet={kaydet} kaydetLabel={mevcut ? "Güncelle" : "Ekle"} onSil={onSil} />}>
+
+      {mevcut && (
+        <div style={{ background: T.primaryDim, border: "1px solid rgba(30,111,217,0.2)", borderRadius: 14, padding: "16px 20px", marginBottom: 16, textAlign: "center" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: T.textSub, letterSpacing: "0.06em", marginBottom: 8 }}>SÜRÜCÜ KODU</div>
+          <div style={{ fontSize: 34, fontWeight: 800, letterSpacing: "0.2em", color: T.primary }}>{mevcut.kod}</div>
+        </div>
+      )}
+
+      <Input label="Ad Soyad" value={ad} onChange={(v) => { setAd(v); setHata(""); }} placeholder="Örn. Ahmet Yılmaz" />
+      <Input label="Telefon (opsiyonel)" value={telefon} onChange={setTelefon} placeholder="+90 555 000 00 00" />
+
+      <Field label="Atanan Araç">
+        <select value={atanmisAracId} onChange={(e) => setAtanmisAracId(e.target.value)} style={{ ...inputStil, color: atanmisAracId ? T.text : T.textMuted }}>
+          <option value="">Araç atanmadı</option>
+          {araclar.map((a) => (
+            <option key={a.id} value={a.id}>{a.marka} {a.model} — {a.plaka || tl(a.tasitTipi)}</option>
+          ))}
+        </select>
+      </Field>
+
+      {atanmisAracId && baskaSurucu(atanmisAracId) && (
+        <div style={{ background: T.warningDim, border: "1px solid rgba(232,146,12,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 14, fontSize: 12, color: T.textSub, lineHeight: 1.5 }}>
+          Bu araç <strong>{baskaSurucu(atanmisAracId).ad}</strong> sürücüsüne de atanmış. İki sürücü de aynı araca kayıt girebilir.
+        </div>
+      )}
+
+      {!mevcut && (
+        <div style={{ fontSize: 12, color: T.textMuted, lineHeight: 1.5, marginBottom: 6 }}>
+          Kaydettiğinde 6 haneli sürücü kodu üretilir. Sürücü bu kodla girip sadece kendi aracına kayıt girebilir.
+        </div>
+      )}
+      {hata && <div style={{ fontSize: 13, color: T.danger, textAlign: "center" }}>{hata}</div>}
+    </Modal>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════
+// FİLO HESAP MODALI
+// ═════════════════════════════════════════════════════════════
+function FiloHesapModal({ sirket, rol, surucu, arac, onKapat, onCikis }) {
+  const [kopya, setKopya] = useState(false);
+  const kod = rol === "admin" ? sirket?.kod : surucu?.kod;
+  const etiket = rol === "admin" ? "ŞİRKET KODUN" : "SÜRÜCÜ KODUN";
+
+  return (
+    <Modal başlık="Hesap" onKapat={onKapat} yükseklik="70vh"
+      footer={
+        <div style={{ padding: "12px 20px 28px" }}>
+          <button onClick={onKapat} style={{ width: "100%", padding: 14, borderRadius: 12, background: T.primary, color: "#fff", fontSize: 15, fontWeight: 700 }}>Kapat</button>
+        </div>
+      }>
+
+      <div style={{ background: T.primaryDim, border: "1px solid rgba(30,111,217,0.2)", borderRadius: 14, padding: "18px 20px", marginBottom: 16, textAlign: "center" }}>
+        <div style={{ fontSize: 11, fontWeight: 700, color: T.textSub, letterSpacing: "0.06em", marginBottom: 10 }}>{etiket}</div>
+        <div style={{ fontSize: 38, fontWeight: 800, letterSpacing: "0.22em", color: T.primary }}>{kod}</div>
+        <button onClick={() => { navigator.clipboard?.writeText(kod); setKopya(true); setTimeout(() => setKopya(false), 2000); }}
+          style={{ marginTop: 10, display: "inline-flex", alignItems: "center", gap: 6, color: T.textSub, fontSize: 13 }}>
+          {kopya ? <Check size={14} color={T.success} /> : <Copy size={14} />}{kopya ? "Kopyalandı!" : "Kopyala"}
+        </button>
+      </div>
+
+      <div style={{ background: T.card, borderRadius: 14, border: `1px solid ${T.border}`, padding: "6px 16px 10px", marginBottom: 14 }}>
+        {[
+          { l: "Şirket", v: sirket?.ad },
+          { l: "Rol", v: rol === "admin" ? "Filo yöneticisi" : "Sürücü" },
+          ...(rol === "surucu" ? [{ l: "Ad Soyad", v: surucu?.ad }, { l: "Atanan araç", v: arac ? `${arac.marka} ${arac.model}` : "Atanmadı" }] : []),
+          { l: "Kuruluş", v: fmtTarih(sirket?.olusturulma) },
+        ].map((r) => (
+          <div key={r.l} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: `1px solid ${T.borderLight}` }}>
+            <span style={{ fontSize: 14, color: T.textSub }}>{r.l}</span>
+            <span style={{ fontSize: 14, fontWeight: 600, color: T.text }}>{r.v || "—"}</span>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ background: T.warningDim, border: "1px solid rgba(232,146,12,0.25)", borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: T.warning }}>⚠️ Filo verisi bu cihazda saklanıyor</div>
+        <div style={{ fontSize: 12, color: T.textSub, marginTop: 3, lineHeight: 1.5 }}>Sürücülerin kendi cihazlarından girebilmesi için bulut senkronizasyonu gerekiyor — Faz 2'de geliyor.</div>
+      </div>
+
+      <button onClick={() => { onKapat(); onCikis(); }}
+        style={{ width: "100%", padding: 14, borderRadius: 12, border: `1px solid ${T.border}`, background: T.card, color: T.textSub, fontSize: 14, fontWeight: 600 }}>
+        Oturumu Kapat
+      </button>
     </Modal>
   );
 }

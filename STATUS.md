@@ -1,7 +1,7 @@
 # Araç Takip — Proje Durum Dosyası
 
 > Bu dosyayı yeni session başında Claude'a "STATUS.md'yi oku ve kaldığımız yerden devam et" diyerek ver.  
-> Son güncelleme: 2026-06-22
+> Son güncelleme: 2026-09-10
 
 ---
 
@@ -13,10 +13,10 @@
 |---|---|---|
 | **Bireysel App** | aractakip-sandy.vercel.app | ✅ Canlı, tamamlandı |
 | **Landing Page** | aractakip-acxr.vercel.app | ✅ Canlı, Bireysel/Kurumsal seçici eklendi |
-| **Kurumsal Filo** | — | 🔜 Tasarım tamamlandı, kodlama başlamadı |
+| **Kurumsal Filo** | aractakip-sandy.vercel.app | 🚧 Faz 1 kodlandı, Raporlar ekranı eksik |
 
 GitHub: https://github.com/bugrabilim/aractakip.git  
-Son commit: `e904217` — feat: landing page Bireysel/Kurumsal ürün seçici
+Son commit: `feat: kurumsal filo MVP faz 1`
 
 ---
 
@@ -57,10 +57,12 @@ T.danger="#DC2626", T.warning="#E8920C", T.success="#16A34A"
 
 **Ekran / Modal haritası:**
 ```
-GirisEkrani (sekme: giris | yeni | unut)
+GirisEkrani (mod: bireysel | kurumsal)
+  ├── bireysel sekme: giris | yeni | unut
+  └── kurumsal sekme: giris (rol: admin | surucu) | sirket
 App()
-  ├── ekran: zaman | finansal | yakit | bilgi
-  └── modal: fab | arac | dolum | masraf | servis | aracSecici | profil
+  ├── ekran: filo | suruculer | zaman | finansal | yakit | bilgi
+  └── modal: fab | arac | dolum | masraf | servis | aracSecici | surucu | profil | filoHesap
 ```
 
 ---
@@ -116,27 +118,33 @@ Dosya: `landing/index.html` (bağımsız HTML/CSS/JS, Vite build gerektirmez)
 - Sürücü mobil app — saha veri girişi
 - Türkçe + KDV uyumlu
 
-### Kurumsal MVP Teknik Tasarım (Faz 1)
+### Kurumsal MVP Faz 1 — KODLANDI ✅
 
-**Mimari:** Mevcut localStorage yaklaşımı genişletilir
+**Mimari:** Mevcut localStorage yaklaşımı genişletildi
 ```
 localStorage key: fleet:{sirketKodu}:veri
-  → sirket: { ad, kod, adminKodu, olusturulma }
+  → sirket: { ad, kod, olusturulma }
   → araclar: [ AracForm[] ]
-  → suruculer: [ { id, ad, telefon, atanmisAracId } ]
+  → suruculer: [ { id, kod, ad, telefon, atanmisAracId } ]
   → doldurmalar: { [aracId]: DolumKayit[] }
   → masraflar: { [aracId]: MasrafKayit[] }
+
+localStorage key: surucu:{surucuKodu} → { sirketKodu, surucuId }
 ```
 
-**Kullanıcı rolleri:**
-- **Admin (şirket kodu):** Filo dashboard, sürücü yönetimi, raporlar, araç ekleme
-- **Sürücü (sürücü kodu):** Sadece kendi aracına km/dolum/masraf girişi
+Tasarımdan iki sapma:
+- `sirket.adminKodu` yazılmadı — yönetici zaten şirket koduyla giriyor, ikinci kod ölü alan olurdu.
+- `suruculer[].kod` eklendi — sürücü girişi için 6 haneli kod zorunlu.
 
-**Yeni ekranlar:**
-1. **Filo Dashboard** — tüm araçlar grid, toplam maliyet, bu ay özet, kritik uyarılar
-2. **Sürücüler** — liste, araç ataması, kişi başı maliyet
-3. **Araç Detay** — bireysel app'teki 4 sekme (zaman/finansal/yakıt/bilgi) aynen
-4. **Raporlar** — araç/sürücü karşılaştırma, aylık trend, CSV export
+**Kullanıcı rolleri:**
+- **Yönetici (şirket kodu):** Filo paneli, sürücü yönetimi, araç ekleme, tüm araçların detayı
+- **Sürücü (sürücü kodu):** Sadece atanmış aracı; dolum/masraf/servis girişi. Finansal ekran, araç seçici, araç ekle/düzenle/sil kapalı.
+
+**Ekranlar:**
+1. [x] **Filo Paneli** (`FiloEkran`) — araç grid'i, filo metrikleri, birleşik kritik uyarı listesi, karta tıkla → araç detayı
+2. [x] **Sürücüler** (`SurucularEkran`) — liste, araç ataması, kopyalanabilir sürücü kodu, kişi başı aylık maliyet
+3. [x] **Araç Detay** — bireysel app'teki 4 sekme aynen yeniden kullanıldı
+4. [ ] **Raporlar** — araç/sürücü karşılaştırma, aylık trend, CSV export → **sıradaki iş**
 
 ---
 
@@ -192,10 +200,11 @@ repo/
 
 ## Sonraki Adım
 
-**Kurumsal Filo MVP kodlamaya başla** — Faz 1:
-1. GirisEkrani'na "Kurumsal Giriş" seçeneği ekle (şirket kodu / sürücü kodu ayrımı)
-2. Admin rolü için FiloDashboard ekranı (yeni ana ekran)
-3. Sürücü rolü için kısıtlı giriş (sadece kendi aracı)
-4. Şirket oluşturma akışı (yeni şirket kodu üret)
+**Raporlar ekranı** — Faz 1'in son eksiği:
+1. Araç karşılaştırma tablosu (km, yakıt, masraf, TL/km)
+2. Sürücü karşılaştırma
+3. Aylık trend grafiği (recharts, mevcut BarChart pattern'i)
+4. CSV export — bireysel tarafta da eksik, tek fonksiyon ikisini de karşılar
 
-Başlamak için: `src/App.jsx` dosyasını oku ve mevcut `GirisEkrani` bileşenini baz alarak genişlet.
+Ardından Faz 2: Supabase migrasyonu — sürücülerin kendi cihazlarından girebilmesi için
+bulut senkronizasyonu şart. Şu an filo verisi tek cihazda.
