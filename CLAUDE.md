@@ -2,6 +2,10 @@
 
 Bu dosya tüm ajanlar tarafından okunur. Kuralları değiştirmeden önce kullanıcıyla konuş.
 
+> **Yeni oturum açtıysan:** Önce `HANDOFF.md` dosyasını oku — önceki oturumun tam devir notu orada
+> (alınan kararlar, yarım kalanlar, pazar araştırması, kurumsal MVP tasarımı). Bu dosya sadece kuralları
+> ve mevcut durumun özetini içerir. Özellik durumu için `STATUS.md`.
+
 ---
 
 ## Mimari
@@ -14,8 +18,10 @@ Bu dosya tüm ajanlar tarafından okunur. Kuralları değiştirmeden önce kulla
 | Backend | YOK — tüm veri `data:${kod}` anahtarında localStorage'da |
 | Deploy | GitHub `main` → Vercel otomatik |
 
-**Tek dosya mimarisi:** Tüm uygulama kodu `src/App.jsx` içinde (~1300 satır).  
+**Tek dosya mimarisi:** Tüm uygulama kodu `src/App.jsx` içinde (~1800 satır, 110 KB).  
 Landing page ayrı: `landing/index.html` (bağımsız HTML/CSS/JS dosyası).
+
+⚠️ `public/landing.html` eski bir kopyadır, düzenleme. Güncel landing: `landing/index.html`.
 
 ---
 
@@ -133,3 +139,73 @@ src/App.jsx veya landing/index.html değiştir
 ```
 
 Ajanlar birbirini `Agent` tool ile çağırır. Her ajan bu CLAUDE.md'yi okuyarak bağlamı alır.
+
+---
+
+## Mevcut Durum (2026-09-10)
+
+| Ürün | Durum |
+|---|---|
+| **Bireysel App** | Canlı ve çalışıyor. Çoklu araç, yakıt/masraf/servis takibi, finansal analiz, AI fiş tanıma, responsive sidebar tamam. |
+| **Landing Page** | Canlı. Bireysel/Kurumsal ürün seçici modal, kurumsal bölümü, fiyatlandırma eklendi. |
+| **Kurumsal Filo** | Tasarım ve veri modeli kararlaştırıldı, **kod yazılmadı**. Sıradaki ana iş. |
+
+### Kilitli ürün kararları — tartışma, uygula
+
+- **Kurumsal mimari:** Supabase değil, mevcut localStorage + paylaşımlı şirket kodu (Faz 1). Supabase Faz 2'ye ertelendi.
+- **Konumlanma:** "Türkiye'nin Fleetio'su" — yazılım-only, GPS donanımı satmıyoruz.
+- **Hedef segment:** 10-100 araçlı Türk KOBİ'leri.
+- **Fiyatlandırma:** ₺99/araç/ay (6-50 araç), ₺69/araç/ay (50+ araç), 1-5 araç ücretsiz. Aylık ödeme, yıllık taahhüt yok.
+- **En yakın rakip:** Filorapor — GPS gerektirmiyor ama yıllık peşin taahhüt istiyor (~₺28,8/araç/ay). Bizim farkımız: aylık ödeme, sürücü mobil uygulaması, self-servis kurulum, açık fiyat.
+
+### Sonraki adım — Kurumsal Filo MVP Faz 1
+
+1. `GirisEkrani`'na kurumsal giriş seçeneği — şirket kodu / sürücü kodu ayrımı
+2. Şirket oluşturma akışı — yeni şirket kodu üretimi
+3. Admin rolü için `FiloDashboard` ekranı
+4. Sürücü rolü için kısıtlı giriş — sadece kendi aracı
+
+Veri modeli ve ekran tasarımı: `HANDOFF.md` §7.
+
+**Roller:** Admin (şirket kodu) → dashboard, sürücü yönetimi, raporlar, araç ekleme. Sürücü (sürücü kodu) → sadece kendi aracına km/dolum/masraf girişi.
+
+```
+localStorage anahtarı: fleet:{sirketKodu}:veri
+{ sirket, araclar, suruculer, doldurmalar, masraflar }
+```
+
+### Bireysel app backlog
+
+CSV export (en kritik eksik) · fotoğraf büyütme modalı · silme onay modalı (`confirm()` yerine) · özelleştirilebilir bakım hatırlatıcıları · servis geçmişi özeti.
+
+---
+
+## Tuzaklar
+
+1. **Yakıt mantığı** — önceki sürümlerde defalarca hata yapıldı. Tüketim iki dolum arasındaki km farkına dayanır; ilk dolumda hesaplanamaz. Detay: `docs/handoff/MASTER_DOKUMAN.md` §6.
+2. **`useEffect` import'u** — bir kez unutuldu, build kırıldı. `src/App.jsx` ilk satırındaki import'a yeni hook eklerken dikkat.
+3. **lucide-react ikonları** — 0.383.0'da olmayan ikon build'i kırar. Önce sürümde var mı bak.
+4. **İki landing dosyası** — `landing/index.html` güncel, `public/landing.html` eski.
+5. **PowerShell + Türkçe commit mesajı** — PowerShell 5.1'de here-string ile çok satırlı Türkçe mesaj parse hatası veriyor. Tek satır ASCII kullan ya da Bash tool'a geç.
+6. **AI fiş tanıma test edilemez** — kullanıcının kendi Anthropic API anahtarı gerekiyor, repoda anahtar yok.
+
+---
+
+## Çalışma Tercihleri (Buğra)
+
+- **Dil:** Türkçe — arayüz, konuşma, commit mesajı, doküman.
+- **Karar verme:** Soru sorup bekleme. Mantıklı kararı kendin ver ve devam et.
+- **Cevap stili:** Kısa ve net. Uzun açıklama yerine çalışan kod.
+- **Commit:** Sadece değişen dosyaları ekle, `git add -A` kullanma.
+- **Büyük değişiklikte:** `npm run build` ile production build'i doğrula.
+
+---
+
+## Arşiv — `docs/handoff/`
+
+| Dosya | Ne işe yarar |
+|---|---|
+| `MASTER_DOKUMAN.md` | v2.0 master doküman — iş mantığı kuralları, veri modeli, rakip analizi |
+| `yakit-takip-drivvo.jsx` | `App.jsx`'in eski taslağı — tarihsel referans, **güncel değil** |
+| `memory/` | Önceki oturumların bellek dosyaları (tercihler, açık maddeler) |
+| `settings.local.json.ornek` | Eski oturumun izin listesi |
